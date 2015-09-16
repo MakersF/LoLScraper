@@ -25,15 +25,27 @@ class Tier(Enum):
     silver = 5
     bronze = 6
 
+    def __lt__(self,other):
+        return self.value > other.value
+
+    def __le__(self,other):
+        return self.value >= self.value
+
+    def __gt__(self,other):
+        return self.value <= other.value
+
+    def __ge__(self,other):
+        return self.value <= other.value
+
+    def __eq__(self,other):
+        return self.value == other.value
+
+    def __ne__(self,other):
+        return self.value != other.value
+
 @unique
 class Maps(Enum):
     SUMMONERS_RIFT = 11
-
-def tier_to_int(tier):
-    return Tier[tier].value
-
-def int_to_tier(int):
-    return Tier(int)
 
 def leagues_by_summoner_ids(summoner_ids, queue=Queue.RANKED_SOLO_5x5):
     summoners_league = defaultdict(set)
@@ -45,13 +57,13 @@ def leagues_by_summoner_ids(summoner_ids, queue=Queue.RANKED_SOLO_5x5):
     return summoners_league
 
 def update_participants(tier_seed, participantsIdentities, queue=Queue.RANKED_SOLO_5x5, minimum_tier=Tier.bronze):
-    match_tier = Tier.challenger.value
+    match_tier = Tier.challenger
     leagues = leagues_by_summoner_ids([p.player.summonerId for p in participantsIdentities], queue)
     for league, ids in leagues.items():
-        if league.value <= minimum_tier.value:
+        if league >= minimum_tier:
             tier_seed[league].update(ids)
-            match_tier = max(match_tier, league.value)
-    return int_to_tier(match_tier)
+            match_tier = min(match_tier, league.value)
+    return match_tier
 
 def summoner_names_to_id(summoners):
     ids = {}

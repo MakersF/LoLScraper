@@ -99,7 +99,7 @@ def download_matches(json_conf, configuration_file_path, do_store_state=True):
                         store.store(match.to_json(sort_keys=False,indent=None), match_min_tier)
 
                 players_to_analyze -= analyzed_players
-                downloaded_matches += matches_to_download
+                downloaded_matches.update(matches_to_download)
                 matches_to_download.clear()
 
             if do_store_state:

@@ -1,0 +1,10 @@
+{
+  "cassiopeia": {
+    "api_key": "your-api-key",
+    "region": "EUW"
+  },
+  "destination_directory": "your-destination",
+  "seed_players": [
+    "CW Freeze"
+  ]
+}

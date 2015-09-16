@@ -25,6 +25,9 @@ class Tier(Enum):
     silver = 5
     bronze = 6
 
+    def __hash__(self):
+        return self.value
+
     def __lt__(self,other):
         return self.value > other.value
 
@@ -62,7 +65,7 @@ def update_participants(tier_seed, participantsIdentities, queue=Queue.RANKED_SO
     for league, ids in leagues.items():
         if league >= minimum_tier:
             tier_seed[league].update(ids)
-            match_tier = min(match_tier, league.value)
+            match_tier = min(match_tier, league)
     return match_tier
 
 def summoner_names_to_id(summoners):

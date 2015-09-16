@@ -35,7 +35,7 @@
   },
   "matches_per_time_slice": 2000,
   "matches_per_time_slice_optional": true,
-  "matches_per_file": 1000,
+  "matches_per_file": 100,
   "matches_per_file_optional": true,
   "map": "SUMMONERS_RIFT",
   "map_optional": true,

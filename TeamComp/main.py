@@ -61,7 +61,7 @@ def download_matches(json_conf, configuration_file_path, do_store_state=True):
     duration = max(delta_3_hours, datetime.timedelta(**json_conf.get('time_slice_duration', {'days':2} )))
 
     matches_per_time_slice = json_conf.get('matches_per_time_slice', 2000)
-    matches_per_file = json_conf.get('matches_per_file', 1000)
+    matches_per_file = json_conf.get('matches_per_file', 100)
 
     queue = Queue[json_conf.get('queue', Queue.RANKED_SOLO_5x5.name)]
     map = Maps[json_conf.get('map', Maps.SUMMONERS_RIFT.name)]

@@ -4,8 +4,6 @@ import os
 
 class Store:
     extension = ".json.gz"
-    _stored_matches = 0
-    _index = 0
 
     def __init__(self, dir_path, matches_per_file=1000, prefix="", file_name_postfix =""):
         self._dir = dir_path
@@ -13,6 +11,8 @@ class Store:
         self._matches_per_file = matches_per_file
         self._file = None
         self._postfix = file_name_postfix
+        self._stored_matches = 0
+        self._index = 0
 
     def open(self, path):
         if self._file:
@@ -43,9 +43,9 @@ class Store:
         self._stored_matches += 1
 
 class TierStore:
-    _stores = {}
 
     def __init__(self, dir_path, lines_per_store=1000, file_name=""):
+        self._stores = {}
         self._dir = dir_path
         self._file_name = file_name
         self._lines_per_store = lines_per_store

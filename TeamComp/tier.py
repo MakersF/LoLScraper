@@ -15,8 +15,7 @@ class Queue(Enum):
     RANKED_TEAM_3x3 = 1
     RANKED_TEAM_5x5 = 2
 
-@unique
-class Tier(Enum):
+class Tier:
     challenger = 0
     master = 1
     diamond = 2
@@ -25,26 +24,42 @@ class Tier(Enum):
     silver = 5
     bronze = 6
 
-    def __hash__(self):
-        return self.value
+    num_tiers = 7
 
-    def __lt__(self,other):
-        return self.value > other.value
+    def is_better(first, second):
+        return min(first, second)
 
-    def __le__(self,other):
-        return self.value >= self.value
+    @staticmethod
+    def worse(first, second):
+        return max(first, second)
 
-    def __gt__(self,other):
-        return self.value <= other.value
+    @staticmethod
+    def is_better_or_equal(better, worse):
+        return better <= worse
 
-    def __ge__(self,other):
-        return self.value <= other.value
+    @classmethod
+    def to_string(cls, tier):
+        return Tier.__strings[tier]
 
-    def __eq__(self,other):
-        return self.value == other.value
-
-    def __ne__(self,other):
-        return self.value != other.value
+    @classmethod
+    def parse(cls, tier):
+        initial = tier[0].lower()
+        if initial == 'b':
+            return cls.bronze
+        elif initial == 's':
+            return cls.silver
+        elif initial == 'g':
+            return cls.gold
+        elif initial == 'p':
+            return cls.platinum
+        elif initial == 'd':
+            return cls.diamond
+        elif initial == 'm':
+            return cls.master
+        elif initial == 'c':
+            return cls.challenger
+        else:
+            raise ValueError("No Tier with name {}".format(tier))
 
 @unique
 class Maps(Enum):
@@ -56,16 +71,17 @@ def leagues_by_summoner_ids(summoner_ids, queue=Queue.RANKED_SOLO_5x5):
         for id, leagues in get_league_entries_by_summoner(summoner_ids[start:end]).items():
             for league in leagues:
                 if Queue[league.queue]==queue:
-                    summoners_league[Tier[league.tier.lower()]].add(int(id))
+                    summoners_league[Tier.parse(league.tier)].add(int(id))
     return summoners_league
 
-def update_participants(tier_seed, participantsIdentities, queue=Queue.RANKED_SOLO_5x5, minimum_tier=Tier.bronze):
+def update_participants(tier_seed, participantsIdentities, minimum_tier=Tier.bronze, queue=Queue.RANKED_SOLO_5x5):
     match_tier = Tier.challenger
     leagues = leagues_by_summoner_ids([p.player.summonerId for p in participantsIdentities], queue)
     for league, ids in leagues.items():
-        if league >= minimum_tier:
+        # challenger is 0, bronze is 6
+        if Tier.is_better_or_equal(league, minimum_tier):
             tier_seed[league].update(ids)
-            match_tier = min(match_tier, league)
+        match_tier = Tier.worse(match_tier, league)
     return match_tier
 
 def summoner_names_to_id(summoners):
@@ -79,22 +95,20 @@ def summoner_names_to_id(summoners):
 
 class TierSeed():
 
-    _tiers = dict()
-
-    def __init__(self, tiers={}):
-        for tier in Tier:
-            to_add = tiers.get(tier, set())
-            if isinstance(to_add, set):
-                self._tiers[tier] = to_add
-            else:
-                self._tiers[tier] = set(to_add)
-
+    def __init__(self, tiers=None):
+        self._tiers = [None for x in range(Tier.num_tiers)]
+        if tiers:
+            for tier in range(Tier.num_tiers):
+                to_add = tiers[tier]
+                if to_add:
+                    self._tiers[tier] = set(to_add)
 
     def __getitem__(self, item):
-        if isinstance(item, Tier):
-            return self._tiers[item]
-        else:
-            raise ValueError("TierSeed has no tier '{}'".format(item))
+        itm = self._tiers[item]
+        if not itm:
+            itm = set()
+            self._tiers[item] = itm
+        return itm
 
     def __str__(self):
         return str(self._tiers)
@@ -107,32 +121,41 @@ class TierSeed():
         self.difference_update(other)
         return self
 
-    def get(self, *args, **kwargs):
-        return self._tiers.get(*args, **kwargs)
-
     def update(self, other):
-        for tier in Tier:
-            current = self[tier]
-            addition = other[tier]
-            current.update(addition)
+        for tier in range(Tier.num_tiers):
+            addition = other._tiers[tier]
+            if addition:
+                current = self._tiers[tier]
+                if not current:
+                    current = set(addition)
+                    self._tiers[tier] = current
+                    continue
+                current.update(addition)
 
     def difference_update(self, other):
-        for tier in Tier:
-            current = self[tier]
-            difference = other[tier]
-            current.difference_update(difference)
+        for tier in range(Tier.num_tiers):
+            difference = other._tiers[tier]
+            if difference:
+                current = self._tiers[tier]
+                if not current:
+                    continue
+                current.difference_update(difference)
+
+    def clear(self):
+        for tier in range(Tier.num_tiers):
+            current = self._tiers[tier]
+            if current:
+                current.clear()
 
     def __iter__(self):
-        for tier, ids in self._tiers.items():
-            for id in ids:
-                yield id
-
-    def to_dict(self, **kwargs):
-        return self._tiers
+        for ids in self._tiers:
+            if ids:
+                for id in ids:
+                    yield id
 
     def get_player_tier(self, player_id):
-        for tier in Tier:
+        for tier in range(Tier.num_tiers):
             tier_set = self[tier]
-            if player_id in tier_set:
+            if tier_set and player_id in tier_set:
                 return tier
         raise ValueError("{0} is not registered in the TierSeed".format(player_id))

@@ -16,9 +16,6 @@ class JSONConfigEncoder(JSONEncoder):
         if hasattr(o, '__iter__'):
             return self.encode([x for x in o])
 
-        elif hasattr(o, 'to_dict'):
-            return self.encode(o.to_dict())
-
         elif isinstance(o, datetime.datetime):
             return self.encode(datetime_to_dict(o))
 

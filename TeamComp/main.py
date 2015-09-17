@@ -76,11 +76,18 @@ def download_matches(json_conf, configuration_file_path, do_store_state=True):
 
     base_file_name = json_conf.get('base_file_name', '')
     with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
+        total_matches = 0
         for time_slice in slice_time(start, end, duration):
             #It's impossible that matches overlap between time slices. Reset the history of downloaded matches
             downloaded_matches = set()
             matches_to_download = set()
-            while len(downloaded_matches) < matches_per_time_slice:
+
+            # we add a small number every loop. This ensures eventually we will come out of the loop. This might happen
+            # if, for example, out seed players haven't played in the time we are interested.
+            ensure_to_end_the_loop_eventually = 0
+            epsilon = 0.001
+            while len(downloaded_matches) + ensure_to_end_the_loop_eventually < matches_per_time_slice:
+                ensure_to_end_the_loop_eventually += epsilon
                 # Fetch all the matches of the players to analyze
                 for player_id in players_to_analyze:
                     match_list = get_match_list(player_id, begin_time=time_slice.begin, end_time=time_slice.end)
@@ -102,6 +109,8 @@ def download_matches(json_conf, configuration_file_path, do_store_state=True):
                 players_to_analyze -= analyzed_players
                 downloaded_matches.update(matches_to_download)
                 matches_to_download.clear()
+
+            total_matches += len(downloaded_matches)
 
             if do_store_state:
                 current_state={}

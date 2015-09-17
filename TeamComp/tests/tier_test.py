@@ -52,8 +52,8 @@ class TierTest(unittest.TestCase):
                     Tier.bronze : {26191711}
                 }
         result = leagues_by_summoner_ids(summoners)
-        for tier in Tier:
-            self.assertEqual(leagues[tier], result.get(tier, set()), tier.name)
+        for tier in range(Tier.num_tiers):
+            self.assertEqual(leagues[tier], result.get(tier, set()))
 
     def test_names_to_id(self):
         names = ['cwfreeze', 'makersf', 'zoffo', 'w4sh', "sirnukesalot", "exngodzukee",
@@ -68,8 +68,103 @@ class TierTest(unittest.TestCase):
     def test_empty_tier(self):
         tier = TierSeed()
         self.assertEqual(7, len(tier._tiers))
-        for values in tier._tiers.values():
-            self.assertEqual(set(), values)
+        for t in range(Tier.num_tiers):
+            self.assertEqual(None, tier._tiers[t])
+
+    def test_initialized_tier(self):
+        l = [[1,2,3,4,5,6], None, None, [2,3,4], None, None, [1,]]
+        t = TierSeed(l)
+        for tier in range(Tier.num_tiers):
+            if l[tier]:
+                self.assertEqual(set(l[tier]), t[tier])
+            else:
+                self.assertIsNone(t._tiers[tier])
+
+    def test_autoinit_on_get(self):
+        tier = TierSeed()
+        self.assertEqual(7, len(tier._tiers))
+        for t in range(Tier.num_tiers):
+            self.assertEqual(set(), tier[t])
+
+    def test_tier_addition_not_overlapped(self):
+        l1 = [[1,2,3,4], None, None, None, None, None, None]
+        t1 = TierSeed(l1)
+        l2 = [None, [1,2,3,4], None, None, None, None, None]
+        t2 = TierSeed(l2)
+        target = [[1,2,3,4], [1,2,3,4], None, None, None, None, None]
+        t1 += t2
+        for t in range(Tier.num_tiers):
+            if target[t]:
+                self.assertEqual(set(target[t]), t1[t])
+            else:
+                self.assertIsNone(t1._tiers[t])
+
+    def test_tier_addition_overlapped(self):
+        l1 = [[1,2,3,4], None, None, None, None, None, None]
+        t1 = TierSeed(l1)
+        t2 = TierSeed(l1)
+        t1 += t2
+        for t in range(Tier.num_tiers):
+            if l1[t]:
+                self.assertEqual(set(l1[t]), t1[t])
+            else:
+                self.assertIsNone(t1._tiers[t])
+
+    def test_tier_addition_partially_overlapped(self):
+        l1 = [[1,2,3,4], None, None, None, None, None, None]
+        t1 = TierSeed(l1)
+        l2 = [[3,4,5,6,], None, None, None, None, None, None]
+        t2 = TierSeed(l2)
+        target = [[1,2,3,4,5,6], None, None, None, None, None, None]
+        t1 += t2
+        for t in range(Tier.num_tiers):
+            if target[t]:
+                self.assertEqual(set(target[t]), t1[t])
+            else:
+                self.assertIsNone(t1._tiers[t])
+
+    def test_tier_addition_disjoint(self):
+        l1 = [[1,2,3,4], None, None, None, None, None, None]
+        t1 = TierSeed(l1)
+        l2 = [[5,6,7,8], None, None, None, None, None, None]
+        t2 = TierSeed(l2)
+        target = [[1,2,3,4,5,6,7,8], None, None, None, None, None, None]
+        t1 += t2
+        for t in range(Tier.num_tiers):
+            if target[t]:
+                self.assertEqual(set(target[t]), t1[t])
+            else:
+                self.assertIsNone(t1._tiers[t])
+
+    def test_tier_subtraction_empty_second(self):
+        l1 = [[1,2,3,4], [5,8,1], None, None, None, None, None]
+        t1 = TierSeed(l1)
+        t2 = TierSeed()
+        t1 -= t2
+        for t in range(Tier.num_tiers):
+            if l1[t]:
+                self.assertEqual(set(l1[t]), t1[t])
+            else:
+                self.assertIsNone(t1._tiers[t])
+
+    def test_tier_subtraction_empty_first(self):
+        t1 = TierSeed()
+        l2 = [[1,2,3,4], None, None, None, None, [7], None]
+        t2 = TierSeed(l2)
+        t1 -= t2
+        for t in range(Tier.num_tiers):
+            self.assertIsNone(t1._tiers[t])
+
+    def test_tier_subtraction_overlapped(self):
+        l = [[1,2,3,4], None, [3,4,5,6,7], None, None, None, None]
+        t1 = TierSeed(l)
+        t2 = TierSeed(l)
+        t1 -= t2
+        for t in range(Tier.num_tiers):
+            if l[t]:
+                self.assertEqual(set(), t1[t])
+            else:
+                self.assertIsNone(t1._tiers[t])
 
     def test_update_participants(self):
         match_file = os.path.join(os.path.dirname(__file__), 'match_string.json')
@@ -78,13 +173,29 @@ class TierTest(unittest.TestCase):
         match = MatchDetail(json.loads(match_string))
         baseriotapi.set_region('na')
         result = TierSeed()
-        update_participants(result, match.participantIdentities)
+        min_tier = update_participants(result, match.participantIdentities)
         leagues = defaultdict(set)
         leagues[Tier.diamond] = {21589368}
         leagues[Tier.platinum] = {22668834, 41304754, 25957444, 30555923, 42652920, 507594, 22622940}
         leagues[Tier.gold] = {47531989, 21846758}
-        for tier in Tier:
-            self.assertEqual(leagues[tier], result.get(tier, set()), tier.name)
+        for tier in range(Tier.num_tiers):
+            self.assertEqual(leagues[tier], result[tier])
+        self.assertEqual(min_tier, Tier.gold)
+
+    def test_update_participants_min_tier(self):
+        match_file = os.path.join(os.path.dirname(__file__), 'match_string.json')
+        with open(match_file, 'rt') as f:
+            match_string = f.read()
+        match = MatchDetail(json.loads(match_string))
+        baseriotapi.set_region('na')
+        result = TierSeed()
+        min_tier = update_participants(result, match.participantIdentities, Tier.platinum)
+        leagues = defaultdict(set)
+        leagues[Tier.diamond] = {21589368}
+        leagues[Tier.platinum] = {22668834, 41304754, 25957444, 30555923, 42652920, 507594, 22622940}
+        for tier in range(Tier.num_tiers):
+            self.assertEqual(leagues[tier], result[tier])
+        self.assertEqual(min_tier, Tier.gold)
 
 if __name__ == '__main__':
     unittest.main()

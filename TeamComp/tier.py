@@ -15,7 +15,8 @@ class Queue(Enum):
     RANKED_TEAM_3x3 = 1
     RANKED_TEAM_5x5 = 2
 
-class Tier:
+@unique
+class Tier(Enum):
     challenger = 0
     master = 1
     diamond = 2
@@ -24,22 +25,21 @@ class Tier:
     silver = 5
     bronze = 6
 
-    num_tiers = 7
+    def __hash__(self):
+        return self.value
 
-    def is_better(first, second):
-        return min(first, second)
+    def best(self, other):
+        if self.value <= other.value:
+            return self
+        return other
 
-    @staticmethod
-    def worse(first, second):
-        return max(first, second)
+    def worst(self, other):
+        if self.value >= other.value:
+            return self
+        return other
 
-    @staticmethod
-    def is_better_or_equal(better, worse):
-        return better <= worse
-
-    @classmethod
-    def to_string(cls, tier):
-        return Tier.__strings[tier]
+    def is_better_or_equal(self, other):
+        return self.value <= other.value
 
     @classmethod
     def parse(cls, tier):
@@ -79,9 +79,9 @@ def update_participants(tier_seed, participantsIdentities, minimum_tier=Tier.bro
     leagues = leagues_by_summoner_ids([p.player.summonerId for p in participantsIdentities], queue)
     for league, ids in leagues.items():
         # challenger is 0, bronze is 6
-        if Tier.is_better_or_equal(league, minimum_tier):
+        if league.is_better_or_equal(minimum_tier):
             tier_seed[league].update(ids)
-        match_tier = Tier.worse(match_tier, league)
+        match_tier = match_tier.worst(league)
     return match_tier
 
 def summoner_names_to_id(summoners):
@@ -96,19 +96,15 @@ def summoner_names_to_id(summoners):
 class TierSeed():
 
     def __init__(self, tiers=None):
-        self._tiers = [None for x in range(Tier.num_tiers)]
+        self._tiers = defaultdict(set)
         if tiers:
-            for tier in range(Tier.num_tiers):
-                to_add = tiers[tier]
+            for tier in Tier:
+                to_add = tiers.get(tier, None)
                 if to_add:
                     self._tiers[tier] = set(to_add)
 
     def __getitem__(self, item):
-        itm = self._tiers[item]
-        if not itm:
-            itm = set()
-            self._tiers[item] = itm
-        return itm
+        return self._tiers[item]
 
     def __str__(self):
         return str(self._tiers)
@@ -122,40 +118,32 @@ class TierSeed():
         return self
 
     def update(self, other):
-        for tier in range(Tier.num_tiers):
-            addition = other._tiers[tier]
+        for tier, addition in other._tiers.items():
             if addition:
-                current = self._tiers[tier]
-                if not current:
-                    current = set(addition)
-                    self._tiers[tier] = current
-                    continue
-                current.update(addition)
+                self._tiers[tier].update(addition)
 
     def difference_update(self, other):
-        for tier in range(Tier.num_tiers):
-            difference = other._tiers[tier]
-            if difference:
-                current = self._tiers[tier]
-                if not current:
-                    continue
-                current.difference_update(difference)
+        for tier, values in self._tiers.items():
+            if values:
+                difference = other._tiers.get(tier, None)
+                if difference:
+                    self._tiers[tier].difference_update(difference)
 
     def clear(self):
-        for tier in range(Tier.num_tiers):
+        for tier in Tier:
             current = self._tiers[tier]
             if current:
                 current.clear()
 
     def __iter__(self):
-        for ids in self._tiers:
+        for ids in self._tiers.values():
             if ids:
                 for id in ids:
                     yield id
 
     def get_player_tier(self, player_id):
-        for tier in range(Tier.num_tiers):
-            tier_set = self[tier]
-            if tier_set and player_id in tier_set:
+        for tier in Tier:
+            tier_set = self._tiers[tier]
+            if player_id in tier_set:
                 return tier
         raise ValueError("{0} is not registered in the TierSeed".format(player_id))

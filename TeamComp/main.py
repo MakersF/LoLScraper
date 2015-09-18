@@ -65,7 +65,7 @@ def download_matches(json_conf, configuration_file_path, do_store_state=True):
 
     queue = Queue[json_conf.get('queue', Queue.RANKED_SOLO_5x5.name)]
     map = Maps[json_conf.get('map', Maps.SUMMONERS_RIFT.name)]
-    minimum_tier = Tier.parse(json_conf.get('minimum_tier', 'bronze').lower())
+    minimum_tier = Tier.parse(json_conf.get('minimum_tier', Tier.bronze.name).lower())
 
     include_timeline = json_conf.get('include_timeline', True)
 
@@ -103,8 +103,8 @@ def download_matches(json_conf, configuration_file_path, do_store_state=True):
                     match = get_match(match_id, include_timeline)
                     if match.mapId == map.value:
                         match_min_tier = update_participants(players_to_analyze, match.participantIdentities, minimum_tier, queue)
-                        if Tier.is_better_or_equal(match_min_tier, minimum_tier):
-                            store.store(match.to_json(sort_keys=False,indent=None), Tier.to_string(match_min_tier))
+                        if match_min_tier.is_better_or_equal(minimum_tier):
+                            store.store(match.to_json(sort_keys=False,indent=None), match_min_tier.name)
 
                 players_to_analyze -= analyzed_players
                 downloaded_matches.update(matches_to_download)

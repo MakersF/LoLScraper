@@ -3,6 +3,9 @@ import gzip
 import os
 
 class Store:
+    """
+    This class can be used to store lines. Every matches_per_file lines it opens a new file to write to.
+    """
     extension = ".json.gz"
 
     def __init__(self, dir_path, matches_per_file=1000, prefix="", file_name_postfix =""):
@@ -44,6 +47,9 @@ class Store:
 
 class TierStore:
 
+    """
+    This class handles several stores in parallel.
+    """
     def __init__(self, dir_path, lines_per_store=1000, file_name=""):
         self._stores = {}
         self._dir = dir_path
@@ -51,6 +57,12 @@ class TierStore:
         self._lines_per_store = lines_per_store
 
     def store(self, text, tier):
+        """
+        Writes text to the underlying Store mapped at tier. If the store doesn't exists, yet, it creates it
+        :param text: the text to write
+        :param tier: the tier used to identify the store
+        :return:
+        """
         store = self._stores.get(tier, None)
         if not store:
             store = Store(self._dir, self._lines_per_store, self._file_name, tier)

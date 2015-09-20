@@ -4,6 +4,13 @@ from cassiopeia.dto.summonerapi import get_summoners_by_name
 from cassiopeia.dto.leagueapi import get_league_entries_by_summoner
 
 def slice(start, stop, step):
+    """
+    Generate pairs so that you can slice from start to stop, step elements at a time
+    :param start: The start of the generated series
+    :param stop: The last of the generated series
+    :param step: The difference between the first element of the returned pair and the second
+    :return: A pair that you can use to slice
+    """
     rg = range(start, stop, step)
     for begin, end in zip(rg[:-1], rg[1:]):
         yield begin, end
@@ -66,6 +73,12 @@ class Maps(Enum):
     SUMMONERS_RIFT = 11
 
 def leagues_by_summoner_ids(summoner_ids, queue=Queue.RANKED_SOLO_5x5):
+    """
+    Takes in a list of players ids and divide them by league tiers.
+    :param summoner_ids: a list containing the ids of players
+    :param queue: the queue to consider
+    :return: a dictionary tier -> set of ids
+    """
     summoners_league = defaultdict(set)
     for start, end in slice(0, len(summoner_ids), 10):
         for id, leagues in get_league_entries_by_summoner(summoner_ids[start:end]).items():
@@ -75,6 +88,15 @@ def leagues_by_summoner_ids(summoner_ids, queue=Queue.RANKED_SOLO_5x5):
     return summoners_league
 
 def update_participants(tier_seed, participantsIdentities, minimum_tier=Tier.bronze, queue=Queue.RANKED_SOLO_5x5):
+    """
+    Add the participants of a match to a TierSeed if they are at least minimum_tier. Return the tier of the lowest tier
+    player in the match
+    :param tier_seed: the TierSeed to update
+    :param participantsIdentities: the match participants
+    :param minimum_tier: the minimum tier that a participant must be in order to be added
+    :param queue: the queue over which the tier of the player is considered
+    :return: the tier of the lowest tier player in the match
+    """
     match_tier = Tier.challenger
     leagues = leagues_by_summoner_ids([p.player.summonerId for p in participantsIdentities], queue)
     for league, ids in leagues.items():
@@ -85,6 +107,11 @@ def update_participants(tier_seed, participantsIdentities, minimum_tier=Tier.bro
     return match_tier
 
 def summoner_names_to_id(summoners):
+    """
+    Gets a list of summoners names and return a dictionary mapping the player name to his/her summoner id
+    :param summoners: a list of player names
+    :return: a dictionary name -> id
+    """
     ids = {}
     for start, end in slice(0, len(summoners), 40):
         result = get_summoners_by_name(summoners[start:end])
@@ -94,6 +121,9 @@ def summoner_names_to_id(summoners):
 
 
 class TierSeed():
+    """
+    Class to keep players ids separated by tiers.
+    """
 
     def __init__(self, tiers=None):
         self._tiers = defaultdict(set)
@@ -102,6 +132,12 @@ class TierSeed():
                 to_add = tiers.get(tier, None)
                 if to_add:
                     self._tiers[tier] = set(to_add)
+
+    def __len__(self):
+        length = 0
+        for ids in self._tiers.values():
+            length += len(ids)
+        return length
 
     def __getitem__(self, item):
         return self._tiers[item]

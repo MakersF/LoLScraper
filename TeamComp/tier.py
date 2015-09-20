@@ -120,7 +120,7 @@ def summoner_names_to_id(summoners):
     return ids
 
 
-class TierSeed():
+class TierSet():
     """
     Class to keep players ids separated by tiers.
     """
@@ -135,8 +135,8 @@ class TierSeed():
 
     def __len__(self):
         length = 0
-        for ids in self._tiers.values():
-            length += len(ids)
+        for set in self._tiers.values():
+            length += len(set)
         return length
 
     def __getitem__(self, item):
@@ -171,11 +171,23 @@ class TierSeed():
             if current:
                 current.clear()
 
+    def consume(self, tier, number=None):
+        from itertools import count
+        try:
+            set = self._tiers[tier]
+            generator = count() if not number else range(number)
+            for _ in generator:
+                yield set.pop()
+        except:
+            raise StopIteration
+
     def __iter__(self):
-        for ids in self._tiers.values():
-            if ids:
-                for id in ids:
+        for set in self._tiers.values():
+            if set:
+                for id in set:
                     yield id
+
+class TierSeed(TierSet):
 
     def get_player_tier(self, player_id):
         for tier in Tier:

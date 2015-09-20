@@ -2,7 +2,7 @@ import unittest
 import os
 from collections import defaultdict
 import json
-from tier import summoner_names_to_id, slice, leagues_by_summoner_ids, Tier, update_participants, TierSeed
+from tier import summoner_names_to_id, slice, leagues_by_summoner_ids, Tier, update_participants, TierSet, TierSeed
 from cassiopeia import baseriotapi
 from cassiopeia.type.dto.match import MatchDetail
 
@@ -52,15 +52,15 @@ class TierTest(unittest.TestCase):
         leagues = {
                     Tier.challenger : {44256841, 21653685, 22447540},
                     Tier.master : {22281234},
-                    Tier.diamond : {29378330, 23746128, 23742827},
-                    Tier.platinum : {23836705, 29600081},
+                    Tier.diamond : {29378330, 23746128, 23742827, 23836705, 23836705},
+                    Tier.platinum : {29600081},
                     Tier.gold : {35473944},
                     Tier.silver :{56067323},
                     Tier.bronze : {26191711}
                 }
         result = leagues_by_summoner_ids(summoners)
         for tier in Tier:
-            self.assertEqual(leagues[tier], result.get(tier, set()))
+            self.assertEqual(leagues[tier], result.get(tier, set()), tier.name)
 
     def test_names_to_id(self):
         names = ['cwfreeze', 'makersf', 'zoffo', 'w4sh', "sirnukesalot", "exngodzukee",
@@ -80,7 +80,7 @@ class TierTest(unittest.TestCase):
 
     def test_initialized_tier(self):
         l = self.list_to_tier_initializer([[1,2,3,4,5,6], None, None, [2,3,4], None, None, [1,]])
-        t = TierSeed(l)
+        t = TierSet(l)
         for tier in Tier:
             if l.get(tier, None):
                 self.assertEqual(set(l[tier]), t[tier])
@@ -88,7 +88,7 @@ class TierTest(unittest.TestCase):
                 self.assertEqual(set(), t._tiers[tier])
 
     def test_autoinit_on_get(self):
-        tier = TierSeed()
+        tier = TierSet()
         self.assertEqual(0, len(tier._tiers))
         for t in Tier:
             self.assertEqual(set(), tier[t])
@@ -96,9 +96,9 @@ class TierTest(unittest.TestCase):
 
     def test_tier_addition_not_overlapped(self):
         l1 = self.list_to_tier_initializer([[1,2,3,4], None, None, None, None, None, None])
-        t1 = TierSeed(l1)
+        t1 = TierSet(l1)
         l2 = self.list_to_tier_initializer([None, [1,2,3,4], None, None, None, None, None])
-        t2 = TierSeed(l2)
+        t2 = TierSet(l2)
         target = self.list_to_tier_initializer([[1,2,3,4], [1,2,3,4], None, None, None, None, None])
         t1 += t2
         for t in Tier:
@@ -109,8 +109,8 @@ class TierTest(unittest.TestCase):
 
     def test_tier_addition_overlapped(self):
         l1 = self.list_to_tier_initializer([[1,2,3,4], None, None, None, None, None, None])
-        t1 = TierSeed(l1)
-        t2 = TierSeed(l1)
+        t1 = TierSet(l1)
+        t2 = TierSet(l1)
         t1 += t2
         for t in Tier:
             if l1.get(t, None):
@@ -120,9 +120,9 @@ class TierTest(unittest.TestCase):
 
     def test_tier_addition_partially_overlapped(self):
         l1 = self.list_to_tier_initializer([[1,2,3,4], None, None, None, None, None, None])
-        t1 = TierSeed(l1)
+        t1 = TierSet(l1)
         l2 = self.list_to_tier_initializer([[3,4,5,6,], None, None, None, None, None, None])
-        t2 = TierSeed(l2)
+        t2 = TierSet(l2)
         target = self.list_to_tier_initializer([[1,2,3,4,5,6], None, None, None, None, None, None])
         t1 += t2
         for t in Tier:
@@ -133,9 +133,9 @@ class TierTest(unittest.TestCase):
 
     def test_tier_addition_disjoint(self):
         l1 = self.list_to_tier_initializer([[1,2,3,4], None, None, None, None, None, None])
-        t1 = TierSeed(l1)
+        t1 = TierSet(l1)
         l2 = self.list_to_tier_initializer([[5,6,7,8], None, None, None, None, None, None])
-        t2 = TierSeed(l2)
+        t2 = TierSet(l2)
         target = self.list_to_tier_initializer([[1,2,3,4,5,6,7,8], None, None, None, None, None, None])
         t1 += t2
         for t in Tier:
@@ -146,8 +146,8 @@ class TierTest(unittest.TestCase):
 
     def test_tier_subtraction_empty_second(self):
         l1 = self.list_to_tier_initializer([[1,2,3,4], [5,8,1], None, None, None, None, None])
-        t1 = TierSeed(l1)
-        t2 = TierSeed()
+        t1 = TierSet(l1)
+        t2 = TierSet()
         t1 -= t2
         for t in Tier:
             if l1.get(t, None):
@@ -156,17 +156,17 @@ class TierTest(unittest.TestCase):
                 self.assertEqual(set(), t1._tiers[t])
 
     def test_tier_subtraction_empty_first(self):
-        t1 = TierSeed()
+        t1 = TierSet()
         l2 = self.list_to_tier_initializer([[1,2,3,4], None, None, None, None, [7], None])
-        t2 = TierSeed(l2)
+        t2 = TierSet(l2)
         t1 -= t2
         for t in Tier:
             self.assertEqual(set(), t1._tiers[t])
 
     def test_tier_subtraction_overlapped(self):
         l = self.list_to_tier_initializer([[1,2,3,4], None, [3,4,5,6,7], None, None, None, None])
-        t1 = TierSeed(l)
-        t2 = TierSeed(l)
+        t1 = TierSet(l)
+        t2 = TierSet(l)
         t1 -= t2
         for t in Tier:
             if l.get(t, None):

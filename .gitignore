@@ -3,3 +3,4 @@ data
 api-key
 *.pyc
 /profiling
+/test_configurations

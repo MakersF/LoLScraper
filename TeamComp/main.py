@@ -82,7 +82,7 @@ def download_matches(store_callback, seed_players, minimum_tier = Tier.bronze,
             # Iterate until matches_in_time_slice is big enough, and stop anyways after matches_per_time_slice iterations
             # this ensures the script will always terminate even in strange situations
             # (like when all our seeds have no matches in the time slice)
-            for _ in takewhile(lambda x: matches_in_time_slice >= matches_per_time_slice, range(matches_per_time_slice)):
+            for _ in takewhile(lambda x: matches_in_time_slice <= matches_per_time_slice, range(matches_per_time_slice)):
                 for tier in Tier:
                     for player_id, _ in zip(players_to_analyze.consume(tier), range(10)):
                         match_list = get_match_list(player_id, begin_time=time_slice.begin, end_time=time_slice.end, ranked_queues=queue.name)

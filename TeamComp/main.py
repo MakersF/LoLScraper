@@ -58,7 +58,7 @@ def download_matches(store_callback, seed_players, minimum_tier = Tier.bronze,
             if prints_on:
                 print("{} - Calling end_of_time callback with {} downloaded matches"
                       .format(datetime.datetime.now().strftime("%m-%d %H:%M"), total_matches))
-            end_of_time_slice_callback(time_slice.end, players_to_analyze, total_matches, max_match_id)
+            end_of_time_slice_callback(datetime.datetime.utcfromtimestamp(time_slice.end/1000), players_to_analyze, total_matches, max_match_id)
 
     players_to_analyze = TierSeed(tiers=leagues_by_summoner_ids(seed_players, queue))
 

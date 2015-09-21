@@ -14,12 +14,12 @@ class JSONConfigEncoder(JSONEncoder):
 
     def default(self, o):
         if hasattr(o, '__iter__'):
-            return self.encode([x for x in o])
+            return [x for x in o]
 
         elif isinstance(o, datetime.datetime):
-            return self.encode(datetime_to_dict(o))
+            return datetime_to_dict(o)
 
         elif isinstance(o, datetime.timedelta):
-            return self.encode(deltatime_to_dict(o))
+            return deltatime_to_dict(o)
 
         return super().default(o)

@@ -11,10 +11,19 @@ def slice(start, stop, step):
     :param step: The difference between the first element of the returned pair and the second
     :return: A pair that you can use to slice
     """
-    rg = range(start, stop, step)
-    for begin, end in zip(rg[:-1], rg[1:]):
-        yield begin, end
-    yield rg[-1], stop
+    if step == 0:
+        raise ValueError("slice() arg 3 must not be zero")
+    if start==stop:
+        raise StopIteration
+
+    previous = start
+    next = start + step
+    while next < stop:
+        yield previous, next
+        previous += step
+        next += step
+    yield previous, stop
+
 
 @unique
 class Queue(Enum):

@@ -26,6 +26,10 @@ class TierTest(unittest.TestCase):
                 initializer[tier] = set(list[tier.value])
         return initializer
 
+    def test_slice_empty_list(self):
+        for _ in slice(0,0, 1):
+            self.fail()
+
     def test_slice_middle_values(self):
         source = [x for x in range(50)]
         lst = [(x, x+1) for x in range(50)]

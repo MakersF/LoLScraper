@@ -142,7 +142,11 @@ def download_from_config(config, config_file, save_state=True):
 
     include_timeline = config.get('include_timeline', True)
 
-    seed_players = list(summoner_names_to_id(config['seed_players']).values())
+    id_and_names_of_players = config['seed_players']
+    seed_players = {id for id in id_and_names_of_players if isinstance(id, int)}
+    for id in summoner_names_to_id([id for id in id_and_names_of_players if isinstance(id, str)]).values():
+        seed_players.add(id)
+    seed_players = list(seed_players)
 
     base_file_name = config.get('base_file_name', '')
 

@@ -12,7 +12,7 @@ from persist.store import TierStore
 from persist.config import JSONConfigEncoder, datetime_to_dict
 from tier import TierSet, TierSeed, update_participants, Tier, Queue, Maps, summoner_names_to_id, leagues_by_summoner_ids
 
-current_state_extension = '.state'
+current_state_extension = '.checkpoint'
 epoch = datetime.datetime.utcfromtimestamp(0)
 delta_3_hours = datetime.timedelta(hours=3)
 
@@ -166,7 +166,7 @@ def download_from_config(config, config_file, save_state=True):
                          include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
                          prints_on, minimum_match_id)
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('configuration_file',help='The json file to hold the configuration of the download session '
                                                   'you want to start by running this script. Might be a file saved '
@@ -185,3 +185,6 @@ if __name__ == '__main__':
         json_conf.update(current_state)
 
     download_from_config(json_conf, args.configuration_file, not args.no_state)
+
+if __name__ == '__main__':
+    main()

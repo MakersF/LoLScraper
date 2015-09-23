@@ -1,5 +1,6 @@
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from enum import Enum, unique
+import datetime
 
 @unique
 class Queue(Enum):
@@ -163,3 +164,31 @@ class TierSeed(TierSet):
     def remove_players_below_tier(self, tier):
         for t in Tier.all_tiers_below(tier):
             self._tiers.pop(t, None)
+
+class TimeSlice(namedtuple('TimeSliceBase', ['begin', 'end'])):
+
+    def __str__(self):
+        return "({},{})".format(datetime.datetime.utcfromtimestamp(self.begin/1000),
+                                datetime.datetime.utcfromtimestamp(self.end/1000))
+
+epoch = datetime.datetime.utcfromtimestamp(0)
+
+def unix_time(dt):
+    delta = dt - epoch
+    return delta.total_seconds()
+
+def slice_time(begin=datetime.datetime.utcfromtimestamp(0), end=datetime.datetime.now(), duration=datetime.timedelta(days=2)):
+    """
+    :param begin: datetime
+    :param end: datetime
+    :param duration: timedelta
+    :return: a generator for a set of timeslices of the given duration
+    """
+
+    begin_ms = int(unix_time(begin) * 1000)
+    end_ms = int(unix_time(end) * 1000)
+    duration_ms = int(duration.total_seconds() * 1000)
+    sliced = range(begin_ms, end_ms, duration_ms)
+    for start, stop in zip(sliced[:-1], sliced[1:]):
+        yield TimeSlice(start, stop)
+    yield TimeSlice(sliced[-1], end_ms)

@@ -1,4 +1,3 @@
-from collections import namedtuple
 from contextlib import closing, suppress
 from itertools import takewhile
 import datetime
@@ -10,38 +9,11 @@ from cassiopeia import baseriotapi
 from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
 from persist import TierStore, JSONConfigEncoder, datetime_to_dict
-from data_types import TierSet, TierSeed, Tier, Queue, Maps
+from data_types import TierSet, TierSeed, Tier, Queue, Maps, slice_time, epoch
 from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
 
 current_state_extension = '.checkpoint'
-epoch = datetime.datetime.utcfromtimestamp(0)
 delta_3_hours = datetime.timedelta(hours=3)
-
-class TimeSlice(namedtuple('TimeSliceBase', ['begin', 'end'])):
-
-    def __str__(self):
-        return "({},{})".format(datetime.datetime.utcfromtimestamp(self.begin/1000),
-                                datetime.datetime.utcfromtimestamp(self.end/1000))
-
-def unix_time(dt):
-    delta = dt - epoch
-    return delta.total_seconds()
-
-def slice_time(begin=datetime.datetime.utcfromtimestamp(0), end=datetime.datetime.now(), duration=datetime.timedelta(days=2)):
-    """
-    :param begin: datetime
-    :param end: datetime
-    :param duration: timedelta
-    :return: a generator for a set of timeslices of the given duration
-    """
-
-    begin_ms = int(unix_time(begin) * 1000)
-    end_ms = int(unix_time(end) * 1000)
-    duration_ms = int(duration.total_seconds() * 1000)
-    sliced = range(begin_ms, end_ms, duration_ms)
-    for start, stop in zip(sliced[:-1], sliced[1:]):
-        yield TimeSlice(start, stop)
-    yield TimeSlice(sliced[-1], end_ms)
 
 def make_store_callback(store):
     def store_callback(match_json, tier):

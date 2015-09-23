@@ -47,7 +47,7 @@ def make_store_callback(store):
         store.store(match_json, tier)
     return store_callback
 
-def download_matches(store_callback, seed_players, minimum_tier = Tier.bronze,
+def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.bronze,
                      start=epoch,end=datetime.datetime.now(), duration=delta_3_hours,
                      include_timeline=True, matches_per_time_slice=2000,
                      map_type = Maps.SUMMONERS_RIFT, queue=Queue.RANKED_SOLO_5x5, end_of_time_slice_callback=None,
@@ -60,7 +60,7 @@ def download_matches(store_callback, seed_players, minimum_tier = Tier.bronze,
         if end_of_time_slice_callback:
             end_of_time_slice_callback(datetime.datetime.utcfromtimestamp(time_slice.end/1000), players_to_analyze, total_matches, max_match_id)
 
-    players_to_analyze = TierSeed(tiers=leagues_by_summoner_ids(seed_players, queue))
+    players_to_analyze = TierSeed(tiers=seed_players_by_tier)
 
     total_matches = 0
     # We store the maximum match id ever downloaded. Since the set pop is in hash order, and hash(int)=int, we are
@@ -142,18 +142,22 @@ def download_from_config(config, config_file, save_state=True):
 
     include_timeline = config.get('include_timeline', True)
 
-    id_and_names_of_players = config['seed_players']
-    seed_players = {id for id in id_and_names_of_players if isinstance(id, int)}
-    for id in summoner_names_to_id([id for id in id_and_names_of_players if isinstance(id, str)]).values():
-        seed_players.add(id)
-    seed_players = list(seed_players)
+    seed_players = list(summoner_names_to_id(config['seed_players']).values())
+    seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, queue))
+
+    checkpoint_players = config.get('checkpoint_players', None)
+    if checkpoint_players:
+        checkpoint_players_by_tier = TierSeed().from_json(checkpoint_players)
+        seed_players_by_tier.update(checkpoint_players_by_tier)
+        if prints_on:
+            print("Loaded {} players from the checkpoint".format(len(checkpoint_players_by_tier)))
 
     base_file_name = config.get('base_file_name', '')
 
     def time_slice_end_callback(time_slice_end, players_to_analyze, total_matches, maximum_downloaded_id):
         current_state={}
         current_state['start_time'] = datetime_to_dict(time_slice_end)
-        current_state['seed_players'] = players_to_analyze
+        current_state['checkpoint_players'] = players_to_analyze.to_json()
         current_state['minimum_match_id'] = maximum_downloaded_id
         with open(config_file+current_state_extension, 'wt') as state:
             state.write(dumps(current_state, cls=JSONConfigEncoder, indent=4, sort_keys=True))
@@ -162,7 +166,7 @@ def download_from_config(config, config_file, save_state=True):
     minimum_match_id = config.get('minimum_match_id', 0)
 
     with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
-        download_matches(make_store_callback(store), seed_players, minimum_tier, start, end, duration,
+        download_matches(make_store_callback(store), seed_players_by_tier._tiers, minimum_tier, start, end, duration,
                          include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
                          prints_on, minimum_match_id)
 

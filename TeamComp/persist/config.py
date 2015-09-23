@@ -1,6 +1,5 @@
 from json import JSONEncoder
 import datetime
-from tier import TierSet
 
 def __attributes_to_dict(object, fields):
     return {field:getattr(object, field) for field in fields}

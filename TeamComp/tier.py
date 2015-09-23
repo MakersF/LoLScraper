@@ -134,7 +134,8 @@ class TierSet():
     Class to keep players ids separated by tiers.
     """
 
-    def __init__(self, tiers=None):
+    def __init__(self, tiers=None, max_items_per_set = 0):
+        self._max_items_per_set = 0
         self._tiers = defaultdict(set)
         if tiers:
             for tier in Tier:
@@ -165,7 +166,11 @@ class TierSet():
     def update(self, other):
         for tier, addition in other._tiers.items():
             if addition:
-                self._tiers[tier].update(addition)
+                tier_set = self._tiers[tier]
+                if self._max_items_per_set and len(tier_set) + len(addition) > self._max_items_per_set:
+                    continue
+                else:
+                    tier_set.update(addition)
 
     def difference_update(self, other):
         for tier, values in self._tiers.items():
@@ -197,6 +202,9 @@ class TierSet():
                     yield id
 
 class TierSeed(TierSet):
+
+    def __init__(self, tiers=None, max_items_per_set=1000):
+        super().__init__(tiers=tiers, max_items_per_set=max_items_per_set)
 
     def get_player_tier(self, player_id):
         for tier in Tier:

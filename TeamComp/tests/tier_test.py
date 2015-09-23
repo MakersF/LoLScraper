@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 import json
 from data_types import TierSet, TierSeed
-from tier import summoner_names_to_id, slice, leagues_by_summoner_ids, Tier, update_participants
+from summoners_api import summoner_names_to_id, slice, leagues_by_summoner_ids, Tier, update_participants
 from cassiopeia import baseriotapi
 from cassiopeia.type.dto.match import MatchDetail
 

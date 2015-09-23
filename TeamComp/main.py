@@ -11,7 +11,7 @@ from cassiopeia.dto.matchapi import get_match
 from persist.store import TierStore
 from persist.config import JSONConfigEncoder, datetime_to_dict
 from data_types import TierSet, TierSeed, Tier, Queue, Maps
-from tier import update_participants, summoner_names_to_id, leagues_by_summoner_ids
+from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
 
 current_state_extension = '.checkpoint'
 epoch = datetime.datetime.utcfromtimestamp(0)

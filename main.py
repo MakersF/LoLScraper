@@ -8,6 +8,7 @@ from json import loads, dumps
 from cassiopeia import baseriotapi
 from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
+from cassiopeia.type.api.exception import APIError
 from persist import TierStore, JSONConfigEncoder, datetime_to_dict
 from data_types import TierSet, TierSeed, Tier, Queue, Maps, slice_time, epoch
 from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
@@ -29,7 +30,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
     def checkpoint(time_slice, players_to_analyze, total_matches, time_slice_downloaded_matches, max_match_id):
         if prints_on:
                 print("{} - Reached the checkpoint."
-                      .format(datetime.datetime.now().strftime("%m-%d %H:%M"), total_matches))
+                      .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), total_matches))
         if end_of_time_slice_callback:
             end_of_time_slice_callback(datetime.datetime.utcfromtimestamp(time_slice.end/1000), players_to_analyze,
                                        total_matches, time_slice_downloaded_matches, max_match_id)
@@ -45,7 +46,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
     maximum_downloaded_id = 0
     for time_slice in slice_time(start, end, duration):
         if prints_on:
-            print("{} - Starting time slice {}. Downloaded {} matches so far.".format(datetime.datetime.now().strftime("%m-%d %H:%M") ,time_slice, total_matches))
+            print("{} - Starting time slice {}. Downloaded {} matches so far.".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S") ,time_slice, total_matches))
         #It's impossible that matches overlap between time slices. Reset the history of downloaded matches
         downloaded_matches_by_tier = TierSet()
         matches_to_download_by_tier = TierSet()
@@ -59,25 +60,55 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
             # (like when all our seeds have no matches in the time slice)
             for _ in takewhile(lambda x: matches_in_time_slice <= matches_per_time_slice, range(matches_per_time_slice)):
                 for tier in Tier:
-                    for player_id, _ in zip(players_to_analyze.consume(tier), range(10)):
-                        match_list = get_match_list(player_id, begin_time=time_slice.begin, end_time=time_slice.end, ranked_queues=queue.name)
-                        for match in match_list.matches:
-                            match_id = match.matchId
-                            if not match_id in downloaded_matches_by_tier[tier] and match_id > minimum_match_id:
-                                matches_to_download_by_tier[tier].add(match_id)
+                    if prints_on:
+                        print("{} - Starting player download for tier {}. Currently {} players"
+                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze)))
 
-                        analyzed_players[tier].add(player_id)
+                    for player_id in players_to_analyze.consume(tier, 10):
+                        try:
+                            match_list = get_match_list(player_id, begin_time=time_slice.begin, end_time=time_slice.end, ranked_queues=queue.name)
+                            for match in match_list.matches:
+                                match_id = match.matchId
+                                if not match_id in downloaded_matches_by_tier[tier] and match_id > minimum_match_id:
+                                    matches_to_download_by_tier[tier].add(match_id)
 
-                    for match_id, _ in zip(matches_to_download_by_tier.consume(tier), range(10)):
-                        match = get_match(match_id, include_timeline)
-                        if match.mapId == map_type.value:
-                            match_min_tier = update_participants(players_to_analyze, match.participantIdentities, minimum_tier, queue)
-                            if match_min_tier.is_better_or_equal(minimum_tier):
-                                maximum_downloaded_id = max(maximum_downloaded_id, match_id)
-                                store_callback(match.to_json(sort_keys=False,indent=None), match_min_tier.name)
-                                matches_in_time_slice += 1
-                            downloaded_matches_by_tier[tier].add(match_id)
+                            analyzed_players[tier].add(player_id)
+                        except APIError as e:
+                            if 400 <= e.error_code < 600:
+                                # Might be a connection problem
+                                if prints_on:
+                                    print("{} - Encountered error {}"
+                                            .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                                from time import sleep
+                                sleep(5)
+                                continue
+                            else:
+                                raise e
 
+                    if prints_on:
+                        print("{} - Starting matches download for tier {}. Currently {} downloaded"
+                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, matches_in_time_slice))
+                    for match_id in matches_to_download_by_tier.consume(tier, 10):
+                        try:
+                            match = get_match(match_id, include_timeline)
+                            if match.mapId == map_type.value:
+                                match_min_tier = update_participants(players_to_analyze, match.participantIdentities, minimum_tier, queue)
+                                if match_min_tier.is_better_or_equal(minimum_tier):
+                                    maximum_downloaded_id = max(maximum_downloaded_id, match_id)
+                                    store_callback(match.to_json(sort_keys=False,indent=None), match_min_tier.name)
+                                    matches_in_time_slice += 1
+                                downloaded_matches_by_tier[tier].add(match_id)
+                        except APIError as e:
+                            if 400 <= e.error_code < 600:
+                                # Might be a connection problem
+                                if prints_on:
+                                    print("{} - Encountered error {}"
+                                            .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                                from time import sleep
+                                sleep(5)
+                                continue
+                            else:
+                                raise e
                     players_to_analyze -= analyzed_players
             total_matches += matches_in_time_slice
         finally:

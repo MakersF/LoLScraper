@@ -98,6 +98,14 @@ class TierSet():
         self.difference_update(other)
         return self
 
+    def update_tier(self, values, tier):
+        if values:
+            tier_set = self._tiers[tier]
+            if self._max_items_per_set and len(tier_set) + len(values) > self._max_items_per_set:
+                return
+            else:
+                tier_set.update(values)
+
     def update(self, other):
         for tier, addition in other._tiers.items():
             if addition:
@@ -124,10 +132,10 @@ class TierSet():
         from itertools import count
         try:
             set = self._tiers[tier]
-            generator = count() if not number else range(number)
+            generator = count() if number is None else range(number)
             for _ in generator:
                 yield set.pop()
-        except:
+        except KeyError:
             raise StopIteration
 
     def to_json(self):

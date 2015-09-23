@@ -55,7 +55,7 @@ def update_participants(tier_seed, participantsIdentities, minimum_tier=Tier.bro
     for league, ids in leagues.items():
         # challenger is 0, bronze is 6
         if league.is_better_or_equal(minimum_tier):
-            tier_seed[league].update(ids)
+            tier_seed.update(ids, league)
         match_tier = match_tier.worst(league)
     return match_tier
 

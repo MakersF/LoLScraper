@@ -51,14 +51,15 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
                      start=epoch,end=datetime.datetime.now(), duration=delta_3_hours,
                      include_timeline=True, matches_per_time_slice=2000,
                      map_type = Maps.SUMMONERS_RIFT, queue=Queue.RANKED_SOLO_5x5, end_of_time_slice_callback=None,
-                     prints_on=False, minimum_match_id=0):
+                     prints_on=False, minimum_match_id=0, starting_matches_in_first_time_slice=0):
 
-    def checkpoint(time_slice, players_to_analyze, total_matches, max_match_id):
+    def checkpoint(time_slice, players_to_analyze, total_matches, time_slice_downloaded_matches, max_match_id):
         if prints_on:
                 print("{} - Reached the checkpoint."
                       .format(datetime.datetime.now().strftime("%m-%d %H:%M"), total_matches))
         if end_of_time_slice_callback:
-            end_of_time_slice_callback(datetime.datetime.utcfromtimestamp(time_slice.end/1000), players_to_analyze, total_matches, max_match_id)
+            end_of_time_slice_callback(datetime.datetime.utcfromtimestamp(time_slice.end/1000), players_to_analyze,
+                                       total_matches, time_slice_downloaded_matches, max_match_id)
 
     players_to_analyze = TierSeed(tiers=seed_players_by_tier)
 
@@ -77,7 +78,8 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
         matches_to_download_by_tier = TierSet()
         analyzed_players = TierSeed()
 
-        matches_in_time_slice = 0
+        matches_in_time_slice = starting_matches_in_first_time_slice
+        starting_matches_in_first_time_slice = 0
         try:
             # Iterate until matches_in_time_slice is big enough, and stop anyways after matches_per_time_slice iterations
             # this ensures the script will always terminate even in strange situations
@@ -107,7 +109,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
             total_matches += matches_in_time_slice
         finally:
             #Always call the checkpoint, so that we can resume the download in case of exceptions.
-            checkpoint(time_slice, players_to_analyze, total_matches, maximum_downloaded_id)
+            checkpoint(time_slice, players_to_analyze, total_matches, matches_in_time_slice, maximum_downloaded_id)
 
 def download_from_config(config, config_file, save_state=True):
 
@@ -156,21 +158,23 @@ def download_from_config(config, config_file, save_state=True):
 
     base_file_name = config.get('base_file_name', '')
 
-    def time_slice_end_callback(time_slice_end, players_to_analyze, total_matches, maximum_downloaded_id):
+    def time_slice_end_callback(time_slice_end, players_to_analyze, total_matches, matches_in_time_slice, maximum_downloaded_id):
         current_state={}
         current_state['start_time'] = datetime_to_dict(time_slice_end)
         current_state['checkpoint_players'] = players_to_analyze.to_json()
         current_state['minimum_match_id'] = maximum_downloaded_id
+        current_state['matches_in_time_slice'] = matches_in_time_slice
         with open(config_file+current_state_extension, 'wt') as state:
             state.write(dumps(current_state, cls=JSONConfigEncoder, indent=4, sort_keys=True))
 
     ts_end_callback = time_slice_end_callback if save_state else None
     minimum_match_id = config.get('minimum_match_id', 0)
+    starting_matches_in_first_time_slice = config.get('matches_in_time_slice', 0)
 
     with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
         download_matches(make_store_callback(store), seed_players_by_tier._tiers, minimum_tier, start, end, duration,
                          include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
-                         prints_on, minimum_match_id)
+                         prints_on, minimum_match_id, starting_matches_in_first_time_slice)
 
 def main():
     parser = argparse.ArgumentParser()

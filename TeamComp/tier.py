@@ -41,6 +41,12 @@ class Tier(Enum):
     silver = 5
     bronze = 6
 
+    @classmethod
+    def all_tiers_below(cls, tier):
+        for t in cls:
+            if not t.is_better_or_equal(tier):
+                yield  t
+
     def __hash__(self):
         return self.value
 
@@ -225,3 +231,7 @@ class TierSeed(TierSet):
             if player_id in tier_set:
                 return tier
         raise ValueError("{0} is not registered in the TierSeed".format(player_id))
+
+    def remove_players_below_tier(self, tier):
+        for t in Tier.all_tiers_below(tier):
+            self._tiers.pop(t, None)

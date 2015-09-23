@@ -5,10 +5,11 @@ import datetime
 import os
 import argparse
 from json import loads, dumps
+
 from cassiopeia import baseriotapi
 from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
-from persist.store import TierStore, JSONConfigEncoder, datetime_to_dict
+from persist import TierStore, JSONConfigEncoder, datetime_to_dict
 from data_types import TierSet, TierSeed, Tier, Queue, Maps
 from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
 

@@ -2,7 +2,9 @@ import unittest
 import tempfile
 import gzip
 from contextlib import closing
-from persist.store import Store, TierStore
+
+from persist import AutoSplittingFile, TierStore
+
 
 class StoreTest(unittest.TestCase):
 
@@ -12,7 +14,7 @@ class StoreTest(unittest.TestCase):
     lines_per_file = 50
 
     def setUp(self):
-        self.store = Store(self.tmp_dir, self.lines_per_file, self.prefix, self.postfix)
+        self.store = AutoSplittingFile(self.tmp_dir, self.lines_per_file, self.prefix, self.postfix)
 
     def tearDown(self):
         self.store.close()

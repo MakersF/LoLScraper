@@ -29,7 +29,7 @@ class JSONConfigEncoder(JSONEncoder):
 
         return super().default(o)
 
-class Store:
+class AutoSplittingFile:
     """
     This class can be used to store lines. Every matches_per_file lines it opens a new file to write to.
     """
@@ -92,7 +92,7 @@ class TierStore:
         """
         store = self._stores.get(tier, None)
         if not store:
-            store = Store(self._dir, self._lines_per_store, self._file_name, tier)
+            store = AutoSplittingFile(self._dir, self._lines_per_store, self._file_name, tier)
             self._stores[tier] = store
         store.write(text)
 

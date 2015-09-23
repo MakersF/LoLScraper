@@ -1,9 +1,10 @@
 from collections import defaultdict
+
 from data_types import Tier, Queue
 from cassiopeia.dto.summonerapi import get_summoners_by_name
 from cassiopeia.dto.leagueapi import get_league_entries_by_summoner
 
-def slice(start, stop, step):
+def _slice(start, stop, step):
     """
     Generate pairs so that you can slice from start to stop, step elements at a time
     :param start: The start of the generated series
@@ -32,7 +33,7 @@ def leagues_by_summoner_ids(summoner_ids, queue=Queue.RANKED_SOLO_5x5):
     :return: a dictionary tier -> set of ids
     """
     summoners_league = defaultdict(set)
-    for start, end in slice(0, len(summoner_ids), 10):
+    for start, end in _slice(0, len(summoner_ids), 10):
         for id, leagues in get_league_entries_by_summoner(summoner_ids[start:end]).items():
             for league in leagues:
                 if Queue[league.queue]==queue:
@@ -65,7 +66,7 @@ def summoner_names_to_id(summoners):
     :return: a dictionary name -> id
     """
     ids = {}
-    for start, end in slice(0, len(summoners), 40):
+    for start, end in _slice(0, len(summoners), 40):
         result = get_summoners_by_name(summoners[start:end])
         for name, summoner in result.items():
             ids[name] = summoner.id

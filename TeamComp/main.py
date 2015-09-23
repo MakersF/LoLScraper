@@ -152,6 +152,8 @@ def download_from_config(config, config_file, save_state=True):
         if prints_on:
             print("Loaded {} players from the checkpoint".format(len(checkpoint_players_by_tier)))
 
+    seed_players_by_tier.remove_players_below_tier(minimum_tier)
+
     base_file_name = config.get('base_file_name', '')
 
     def time_slice_end_callback(time_slice_end, players_to_analyze, total_matches, maximum_downloaded_id):

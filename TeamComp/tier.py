@@ -203,9 +203,9 @@ class TierSet():
 
     def to_json(self):
         dct = {}
-        for tier, value in self._tiers.items():
-            if dct[tier.name]:
-                dct[tier.name] = list(value)
+        for tier, values in self._tiers.items():
+            if values:
+                dct[tier.name] = list(values)
         return dct
 
     def from_json(self, json_dump):

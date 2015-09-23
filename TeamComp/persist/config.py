@@ -1,5 +1,6 @@
 from json import JSONEncoder
 import datetime
+from tier import TierSet
 
 def __attributes_to_dict(object, fields):
     return {field:getattr(object, field) for field in fields}
@@ -21,5 +22,8 @@ class JSONConfigEncoder(JSONEncoder):
 
         elif isinstance(o, datetime.timedelta):
             return deltatime_to_dict(o)
+
+        elif hasattr(o, 'to_json'):
+            return o.to_json()
 
         return super().default(o)

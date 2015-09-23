@@ -195,6 +195,19 @@ class TierSet():
         except:
             raise StopIteration
 
+    def to_json(self):
+        dct = {}
+        for tier, value in self._tiers.items():
+            if dct[tier.name]:
+                dct[tier.name] = list(value)
+        return dct
+
+    def from_json(self, json_dump):
+        for tier_name, values in json_dump.items():
+            if values:
+                self._tiers[Tier.parse(tier_name)] = set(values)
+        return self
+
     def __iter__(self):
         for set in self._tiers.values():
             if set:

@@ -109,11 +109,7 @@ class TierSet():
     def update(self, other):
         for tier, addition in other._tiers.items():
             if addition:
-                tier_set = self._tiers[tier]
-                if self._max_items_per_set and len(tier_set) + len(addition) > self._max_items_per_set:
-                    continue
-                else:
-                    tier_set.update(addition)
+                self.update_tier(addition, tier)
 
     def difference_update(self, other):
         for tier, values in self._tiers.items():

@@ -61,7 +61,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
             for _ in takewhile(lambda x: matches_in_time_slice <= matches_per_time_slice, range(matches_per_time_slice)):
                 for tier in Tier:
                     if prints_on:
-                        print("{} - Starting player download for tier {}. Currently {} players"
+                        print("{} - Starting player download for tier {}. Players in queue: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze)))
 
                     for player_id in players_to_analyze.consume(tier, 10):
@@ -86,8 +86,10 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
                                 raise e
 
                     if prints_on:
-                        print("{} - Starting matches download for tier {}. Currently {} downloaded"
-                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, matches_in_time_slice))
+                        print("{} - Starting matches download for tier {}. Downloads in queue: {}. Downloaded: {}"
+                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name,
+                                      len(matches_to_download_by_tier), matches_in_time_slice))
+
                     for match_id in matches_to_download_by_tier.consume(tier, 10):
                         try:
                             match = get_match(match_id, include_timeline)

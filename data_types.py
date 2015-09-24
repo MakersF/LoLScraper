@@ -1,6 +1,7 @@
 from collections import defaultdict, namedtuple
 from enum import Enum, unique
 import datetime
+import math
 
 @unique
 class Queue(Enum):
@@ -124,12 +125,11 @@ class TierSet():
             if current:
                 current.clear()
 
-    def consume(self, tier, number=None):
-        from itertools import count
+    def consume(self, tier, minimum_number=1, percentage=0):
         try:
             set = self._tiers[tier]
-            generator = count() if number is None else range(number)
-            for _ in generator:
+            elements_to_consume = max(minimum_number, int(math.floor(percentage * len(set))))
+            for _ in range(elements_to_consume):
                 yield set.pop()
         except KeyError:
             raise StopIteration

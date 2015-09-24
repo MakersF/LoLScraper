@@ -90,7 +90,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name,
                                       len(matches_to_download_by_tier), matches_in_time_slice))
 
-                    for match_id in matches_to_download_by_tier.consume(tier, 10):
+                    for match_id in matches_to_download_by_tier.consume(tier, 10, 0.2):
                         try:
                             match = get_match(match_id, include_timeline)
                             if match.mapId == map_type.value:

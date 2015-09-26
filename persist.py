@@ -50,9 +50,9 @@ class AutoSplittingFile:
         self._file = gzip.open(path, 'wt')
 
     def generate_file_path(self):
-        date = datetime.datetime.now().isoformat()
+        date = datetime.datetime.now().isoformat().replace(":","-")
         name =  '{0}_{1}_{2}_{3}'.format(self._prefix, date, self._postfix, self.extension)
-        return os.path.join(self._dir, name)
+        return os.path.realpath(os.path.join(self._dir, name))
 
     def close(self):
         if self._file:

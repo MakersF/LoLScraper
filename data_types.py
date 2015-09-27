@@ -71,7 +71,7 @@ class TierSet():
     """
 
     def __init__(self, tiers=None, max_items_per_set = 0):
-        self._max_items_per_set = 0
+        self._max_items_per_set = max_items_per_set
         self._tiers = defaultdict(set)
         if tiers:
             for tier in Tier:

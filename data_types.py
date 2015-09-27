@@ -20,6 +20,12 @@ class Tier(Enum):
     bronze = 6
 
     @classmethod
+    def equals_and_above(cls, tier):
+        for t in cls:
+            if t.is_better_or_equal(tier):
+                yield t
+
+    @classmethod
     def all_tiers_below(cls, tier):
         for t in cls:
             if not t.is_better_or_equal(tier):

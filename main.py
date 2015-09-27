@@ -59,7 +59,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
             # this ensures the script will always terminate even in strange situations
             # (like when all our seeds have no matches in the time slice)
             for _ in takewhile(lambda x: matches_in_time_slice <= matches_per_time_slice, range(matches_per_time_slice)):
-                for tier in Tier:
+                for tier in Tier.equals_and_above(minimum_tier):
                     if prints_on:
                         print("{} - Starting player download for tier {}. Players in queue: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze)))

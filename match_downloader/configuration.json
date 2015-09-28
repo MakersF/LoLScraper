@@ -34,7 +34,7 @@
     "days": 2
   },
     "time_slice_duration_optional": true,
-    "time_slice_duration_doc": "Divide the period into slices. This specify how large should be the slice. Before starting with a new slice, all the regions are fetches. Set low (3-4 hours) if you want a good granularity of regions in the output file",
+    "time_slice_duration_doc": "Define how long are the parts in which is divided the period between start and end. Shorter periods will use less RAM, longer periods will have a better distribution of players and matches",
   "matches_per_time_slice": 2000,
     "matches_per_time_slice_optional": true,
   "matches_per_file": 100,

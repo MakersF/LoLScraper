@@ -1,0 +1,47 @@
+{
+  "cassiopeia": {
+    "api_key": "your-api-key",
+    "region": "EUW",
+    "print_calls": false,
+    "rate_limits": [[10, 10], [500, 600]]
+  },
+  "destination_directory": "__file__/destination/",
+  "base_file_name": "",
+  "start_time": {
+    "day": 1,
+    "year": 2015,
+    "month": 1,
+    "hour": 14,
+    "minute": 53
+  },
+  "end_time": {
+    "day": 31,
+    "year": 2015,
+    "month": 12,
+    "hour": 23,
+    "minute": 59
+  },
+  "time_slice_duration": {
+    "days": 2
+  },
+  "matches_per_time_slice": 2000,
+  "matches_per_file": 100,
+  "map": "SUMMONERS_RIFT",
+  "minimum_tier": "BRONZE",
+  "queue": "RANKED_SOLO_5X5",
+  "include_timeline": true,
+  "seed_players": [
+    "CW Freeze",
+    "SirNukesAlot",
+    "EXN godzukee",
+    "d Voidle",
+    "Anaali Assassin",
+    "LamePT",
+    "HiddenLaw",
+    "Dijio",
+    "Das zweite Toast",
+    "ZockChock",
+    "daosh",
+    "Sir Killerlord"
+  ]
+}

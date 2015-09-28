@@ -1,6 +1,5 @@
 .idea
-data
 api-key
 *.pyc
-/profiling
-/test_configurations
+*/profiling
+*/test_configurations

@@ -20,7 +20,7 @@
     "minute": 53
   },
     "start_time_optional": true,
-    "start_time_doc": "Do not fetch matches started before. Defaults to 1970-01-01",
+    "start_time_doc": "Do not fetch matches started before. Defaults to 30 days ago",
   "end_time": {
     "day": 31,
     "year": 2015,

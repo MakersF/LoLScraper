@@ -15,6 +15,7 @@ from summoners_api import update_participants, summoner_names_to_id, leagues_by_
 
 current_state_extension = '.checkpoint'
 delta_3_hours = datetime.timedelta(hours=3)
+delta_30_days = datetime.timedelta(days=30)
 
 def make_store_callback(store):
     def store_callback(match_json, tier):
@@ -22,10 +23,20 @@ def make_store_callback(store):
     return store_callback
 
 def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.bronze,
-                     start=epoch,end=datetime.datetime.now(), duration=delta_3_hours,
+                     start=None,end=None, duration=delta_3_hours,
                      include_timeline=True, matches_per_time_slice=2000,
                      map_type = Maps.SUMMONERS_RIFT, queue=Queue.RANKED_SOLO_5x5, end_of_time_slice_callback=None,
                      prints_on=False, minimum_match_id=0, starting_matches_in_first_time_slice=0):
+
+    if end is None:
+        end = datetime.datetime.now()
+    else:
+        end = min(datetime.datetime.now, end)
+
+    if start is None:
+        start = end - delta_30_days
+    else:
+        start = min(start, end)
 
     def checkpoint(time_slice, players_to_analyze, total_matches, time_slice_downloaded_matches, max_match_id):
         if prints_on:
@@ -144,9 +155,8 @@ def download_from_config(config, config_file, save_state=True):
 
     # Parse the time boundaries
     now = datetime.datetime.now()
-    end = now if not 'end_time' in config else min(now, datetime.datetime(**config['end_time']))
-    start = epoch if not 'start_time' in config else datetime.datetime(**config['start_time'])
-    start = min(start, end)
+    end = None if not 'end_time' in config else min(now, datetime.datetime(**config['end_time']))
+    start = None if not 'start_time' in config else datetime.datetime(**config['start_time'])
     duration = max(delta_3_hours, datetime.timedelta(**config.get('time_slice_duration', {'days':2} )))
 
     matches_per_time_slice = config.get('matches_per_time_slice', 2000)

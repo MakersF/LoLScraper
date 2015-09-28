@@ -1,10 +1,13 @@
 {
   "cassiopeia": {
     "api_key": "your-api-key",
-    "region": "EUW"
+    "region": "NA"
   },
-  "destination_directory": "your-destination",
-  "seed_players": [
-    "CW Freeze"
+  "destination_directory": "path-to-directory",
+  "seed_players":
+  [
+    "nightblue3",
+    "feed l0rd",
+    "GV Keane"
   ]
 }

@@ -38,7 +38,7 @@ If the `destination_directory` element starts with `__file__`, `__file__` will b
 
 ##Customizable
 If your needs are different from the usual ones, you can import RiotScraper as a library.
-The [`download_matches` function](https://github.com/MakersF/RiotScraper/blob/master/match_downloader/match_downloader.py#L25) takes a `store_callback` function in addition to all the parameters the configuration file exposes. The function is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, or just ignore it. 
+The [`download_matches` function](https://github.com/MakersF/RiotScraper/blob/master/match_downloader/match_downloader.py#L25) takes a `store_callback` function in addition to all the parameters the configuration file exposes. The function is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it. 
 
 ##Setup
 No need to install it. Just download the repository, and call

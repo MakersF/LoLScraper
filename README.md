@@ -4,7 +4,8 @@ RiotScraper is a python script to download and store League of Legends matches w
 
 ##Simple
 To build your matches dataset it is as simple as 
-**```python3 match_downloader.py config.json```**
+
+```python3 match_downloader.py config.json```
 
 with config.json
 ```json
@@ -41,7 +42,7 @@ The [`download_matches` function](https://github.com/MakersF/RiotScraper/blob/ma
 
 ##Setup
 No need to install it. Just download the repository, and call
-**`python3 match_downloader.py configuration_file.json`**
+`python3 match_downloader.py configuration_file.json`
 
 ##Dependencies
 RiotScraper is build over [Cassiopeia](https://github.com/robrua/cassiopeia).

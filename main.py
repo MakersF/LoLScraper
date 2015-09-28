@@ -125,6 +125,14 @@ def download_from_config(config, config_file, save_state=True):
     cassioepia = config['cassiopeia']
     baseriotapi.set_api_key(cassioepia['api_key'])
     baseriotapi.set_region(cassioepia['region'])
+
+    limits = cassioepia.get('rate_limits', None)
+    if limits:
+        if isinstance(limits[0], list):
+            baseriotapi.set_rate_limits(limits)
+        else:
+            baseriotapi.set_rate_limit(limits[0], limits[1])
+
     baseriotapi.print_calls(cassioepia.get('print_calls', False))
 
     destination_directory = config['destination_directory']

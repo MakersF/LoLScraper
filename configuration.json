@@ -4,7 +4,9 @@
     "api_key": "your-api-key",
     "region": "EUW",
     "print_calls": false,
-    "print_calls_optional": true
+    "print_calls_optional": true,
+    "rate_limits": [[10, 10], [500, 600]],
+    "rate_limits_optional" : true
   },
   "destination_directory": "__file__/destination/",
     "destination_directory_doc": "destination_directory specifies the directory in which to save the files. It can start with __file__, which will be replaced with the path of the directory of this file",

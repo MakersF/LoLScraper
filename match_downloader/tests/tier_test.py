@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 import json
 from data_types import TierSet, TierSeed
-from summoners_api import summoner_names_to_id, slice, leagues_by_summoner_ids, Tier, update_participants
+from summoners_api import summoner_names_to_id, _slice, leagues_by_summoner_ids, Tier, update_participants
 from cassiopeia import baseriotapi
 from cassiopeia.type.dto.match import MatchDetail
 
@@ -28,13 +28,13 @@ class TierTest(unittest.TestCase):
         return initializer
 
     def test_slice_empty_list(self):
-        for _ in slice(0,0, 1):
+        for _ in _slice(0,0, 1):
             self.fail()
 
     def test_slice_middle_values(self):
         source = [x for x in range(50)]
         lst = [(x, x+1) for x in range(50)]
-        for (b1,e1), (b2,e2) in zip(lst, slice(0,50,1)):
+        for (b1,e1), (b2,e2) in zip(lst, _slice(0,50,1)):
             self.assertEqual(source[b1:e1], source[b2:e2])
 
     def test_slice_end_value(self):
@@ -42,7 +42,7 @@ class TierTest(unittest.TestCase):
         lst = [ x for x in range(20)]
         begin = [0, 3, 6, 9,12,15,18]
         end =   [3, 6, 9,12,15,18,20]
-        generator = slice(0,20,step)
+        generator = _slice(0,20,step)
         for (b1,e1), (b2,e2) in zip(zip(begin, end), generator):
             self.assertEqual(lst[b1:e1], lst[b2:e2])
         try:

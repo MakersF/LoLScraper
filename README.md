@@ -26,7 +26,7 @@ RiotScraper will
 
  - store the matches as compressed files
  - sleep while waiting for the rate limits, not consuming CPU time
- - efficiently use memory to avoid repetitions of matches and players
+ - efficiently use memory to avoid repetitions of matches and players (by clearing the matches and players history between time slices)
 
 ##Configurable
 While the example configuration is extremely short and easy to use, the available options cover all the needs. 

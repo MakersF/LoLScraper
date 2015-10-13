@@ -51,7 +51,7 @@ class AutoSplittingFile:
 
     def generate_file_path(self):
         date = datetime.datetime.now().isoformat().replace(":","-")
-        name =  '{0}_{1}_{2}_{3}'.format(self._prefix, date, self._postfix, self.extension)
+        name = '_'.join([ field for field in [self._prefix, date, self._postfix, self.extension] if field])
         return os.path.realpath(os.path.join(self._dir, name))
 
     def close(self):

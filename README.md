@@ -57,4 +57,4 @@ If you prefer to not install Cassiopeia, you have an alternative!
 The tests require an API key. Create a file called ```api-key``` in the project root directory (where the .gitignore file is stored) with only your api key inside. The file is already on .gitignore, so there is no risk for you to commit and push it on the web.
 
 ##Disclaimer
-Cassiopeia isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.
+RiotScraper isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing League of Legends. League of Legends and Riot Games are trademarks or registered trademarks of Riot Games, Inc. League of Legends © Riot Games, Inc.

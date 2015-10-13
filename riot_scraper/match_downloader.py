@@ -160,7 +160,7 @@ def download_from_config(config, config_file, save_state=True):
     duration = max(delta_3_hours, datetime.timedelta(**config.get('time_slice_duration', {'days':2} )))
 
     matches_per_time_slice = config.get('matches_per_time_slice', 2000)
-    matches_per_file = config.get('matches_per_file', 100)
+    matches_per_file = config.get('matches_per_file', 0)
 
     queue = Queue[config.get('queue', Queue.RANKED_SOLO_5x5.name)]
     map_type = Maps[config.get('map', Maps.SUMMONERS_RIFT.name)]

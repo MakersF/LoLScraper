@@ -140,7 +140,7 @@ def download_from_config(config, config_file, save_state=True):
     limits = cassioepia.get('rate_limits', None)
     if limits:
         if isinstance(limits[0], list):
-            baseriotapi.set_rate_limits(limits)
+            baseriotapi.set_rate_limits(*limits)
         else:
             baseriotapi.set_rate_limit(limits[0], limits[1])
 

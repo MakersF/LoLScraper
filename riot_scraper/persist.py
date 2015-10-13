@@ -35,7 +35,7 @@ class AutoSplittingFile:
     """
     extension = ".json.gz"
 
-    def __init__(self, dir_path, matches_per_file=1000, prefix="", file_name_postfix =""):
+    def __init__(self, dir_path, matches_per_file=0, prefix="", file_name_postfix =""):
         self._dir = dir_path
         self._prefix = prefix
         self._matches_per_file = matches_per_file

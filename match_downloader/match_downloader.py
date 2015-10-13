@@ -18,8 +18,8 @@ delta_3_hours = datetime.timedelta(hours=3)
 delta_30_days = datetime.timedelta(days=30)
 
 def make_store_callback(store):
-    def store_callback(match_json, tier):
-        store.store(match_json, tier)
+    def store_callback(match, tier):
+        store.store(match.to_json(sort_keys=False,indent=None), tier)
     return store_callback
 
 def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.bronze,
@@ -108,7 +108,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
                                 match_min_tier = update_participants(players_to_analyze, match.participantIdentities, minimum_tier, queue)
                                 if match_min_tier.is_better_or_equal(minimum_tier):
                                     maximum_downloaded_id = max(maximum_downloaded_id, match_id)
-                                    store_callback(match.to_json(sort_keys=False,indent=None), match_min_tier.name)
+                                    store_callback(match, match_min_tier.name)
                                     matches_in_time_slice += 1
                                 downloaded_matches_by_tier[tier].add(match_id)
                         except APIError as e:

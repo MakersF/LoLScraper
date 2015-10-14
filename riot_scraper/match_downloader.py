@@ -10,7 +10,7 @@ from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
 from cassiopeia.type.api.exception import APIError
 from persist import TierStore, JSONConfigEncoder, datetime_to_dict
-from data_types import TierSet, TierSeed, Tier, Queue, Maps, slice_time, epoch
+from data_types import TierSet, TierSeed, Tier, Queue, Maps, slice_time
 from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
 
 current_state_extension = '.checkpoint'
@@ -28,15 +28,13 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
                      map_type = Maps.SUMMONERS_RIFT, queue=Queue.RANKED_SOLO_5x5, end_of_time_slice_callback=None,
                      prints_on=False, minimum_match_id=0, starting_matches_in_first_time_slice=0):
 
-    if end is None:
-        end = datetime.datetime.now()
-    else:
-        end = min(datetime.datetime.now, end)
+    if not start and not end:
+        raise ValueError("You must specify at least one of parameters start and end")
 
     if start is None:
         start = end - delta_30_days
     else:
-        start = min(start, end)
+        start = start if not end else min(start, end)
 
     def checkpoint(time_slice, players_to_analyze, total_matches, time_slice_downloaded_matches, max_match_id):
         if prints_on:

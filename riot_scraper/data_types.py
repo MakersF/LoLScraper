@@ -187,18 +187,23 @@ def unix_time(dt):
     delta = dt - epoch
     return delta.total_seconds()
 
-def slice_time(begin=datetime.datetime.utcfromtimestamp(0), end=datetime.datetime.now(), duration=datetime.timedelta(days=2)):
+def slice_time(begin, end=None, duration=datetime.timedelta(days=2)):
     """
     :param begin: datetime
     :param end: datetime
     :param duration: timedelta
     :return: a generator for a set of timeslices of the given duration
     """
-
-    begin_ms = int(unix_time(begin) * 1000)
-    end_ms = int(unix_time(end) * 1000)
     duration_ms = int(duration.total_seconds() * 1000)
-    sliced = range(begin_ms, end_ms, duration_ms)
-    for start, stop in zip(sliced[:-1], sliced[1:]):
-        yield TimeSlice(start, stop)
-    yield TimeSlice(sliced[-1], end_ms)
+    previous = int(unix_time(begin) * 1000)
+    next = previous + duration_ms
+    now_ms = unix_time(datetime.datetime.now())*1000
+    end_slice = now_ms if not end else min(now_ms, int(unix_time(end) * 1000))
+
+    while next < end_slice:
+        yield TimeSlice(previous, next)
+        previous = next
+        next += duration_ms
+        now_ms = unix_time(datetime.datetime.now())*1000
+        end_slice = now_ms if not end else min(now_ms, int(unix_time(end) * 1000))
+    yield TimeSlice(previous, end_slice)

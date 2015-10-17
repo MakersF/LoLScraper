@@ -126,7 +126,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
             #Always call the checkpoint, so that we can resume the download in case of exceptions.
             checkpoint(time_slice, players_to_analyze, total_matches, matches_in_time_slice, maximum_downloaded_id)
 
-def download_from_config(config, config_file, save_state=True):
+def download_from_config(config, config_file, save_state=True, store_callback = None):
 
     prints_on = config.get('prints_on', False)
 
@@ -193,10 +193,15 @@ def download_from_config(config, config_file, save_state=True):
     minimum_match_id = config.get('minimum_match_id', 0)
     starting_matches_in_first_time_slice = config.get('matches_in_time_slice', 0)
 
-    with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
-        download_matches(make_store_callback(store), seed_players_by_tier._tiers, minimum_tier, start, end, duration,
-                         include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
-                         prints_on, minimum_match_id, starting_matches_in_first_time_slice)
+    if not store_callback:
+        with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
+            download_matches(make_store_callback(store), seed_players_by_tier._tiers, minimum_tier, start, end, duration,
+                             include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
+                             prints_on, minimum_match_id, starting_matches_in_first_time_slice)
+    else:
+        download_matches(store_callback, seed_players_by_tier._tiers, minimum_tier, start, end, duration,
+                             include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
+                             prints_on, minimum_match_id, starting_matches_in_first_time_slice)
 
 def main():
     parser = argparse.ArgumentParser()

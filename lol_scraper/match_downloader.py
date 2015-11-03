@@ -9,6 +9,7 @@ from cassiopeia import baseriotapi
 from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
 from cassiopeia.type.api.exception import APIError
+
 from persist import TierStore, JSONConfigEncoder, datetime_to_dict
 from data_types import TierSet, TierSeed, Tier, Queue, Maps, slice_time
 from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
@@ -22,7 +23,7 @@ def make_store_callback(store):
         store.store(match.to_json(sort_keys=False,indent=None), tier)
     return store_callback
 
-def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.bronze,
+def download_matches(match_downloaded_callback=None, seed_players_by_tier=None, minimum_tier = Tier.bronze,
                      start=None,end=None, duration=delta_3_hours,
                      include_timeline=True, matches_per_time_slice=2000,
                      map_type = Maps.SUMMONERS_RIFT, queue=Queue.RANKED_SOLO_5x5, end_of_time_slice_callback=None,
@@ -44,7 +45,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
             end_of_time_slice_callback(datetime.datetime.utcfromtimestamp(time_slice.end/1000), players_to_analyze,
                                        total_matches, time_slice_downloaded_matches, max_match_id)
 
-    players_to_analyze = TierSeed(tiers=seed_players_by_tier)
+    players_to_analyze = TierSeed(tiers=seed_players_by_tier._tiers)
 
     total_matches = 0
     # We store the maximum match id ever downloaded. Since the set pop is in hash order, and hash(int)=int, we are
@@ -106,7 +107,7 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
                                 match_min_tier = update_participants(players_to_analyze, match.participantIdentities, minimum_tier, queue)
                                 if match_min_tier.is_better_or_equal(minimum_tier):
                                     maximum_downloaded_id = max(maximum_downloaded_id, match_id)
-                                    store_callback(match, match_min_tier.name)
+                                    match_downloaded_callback(match, match_min_tier.name)
                                     matches_in_time_slice += 1
                                 downloaded_matches_by_tier[tier].add(match_id)
                         except APIError as e:
@@ -126,9 +127,11 @@ def download_matches(store_callback, seed_players_by_tier, minimum_tier = Tier.b
             #Always call the checkpoint, so that we can resume the download in case of exceptions.
             checkpoint(time_slice, players_to_analyze, total_matches, matches_in_time_slice, maximum_downloaded_id)
 
-def download_from_config(config, config_file, save_state=True, store_callback = None):
+def download_from_config(config, store_callback, checkpoint_callback):
 
-    prints_on = config.get('prints_on', False)
+    runtime_config = {}
+
+    runtime_config['prints_on'] = config.get('prints_on', False)
 
     #Set up the api
     cassioepia = config['cassiopeia']
@@ -144,43 +147,45 @@ def download_from_config(config, config_file, save_state=True, store_callback = 
 
     baseriotapi.print_calls(cassioepia.get('print_calls', False))
 
-    destination_directory = config['destination_directory']
-
-    # Allow the directory to be relative to the config file.
-    if destination_directory.startswith('__file__'):
-        configuration_file_dir = os.path.dirname(os.path.realpath(config_file))
-        destination_directory=destination_directory.replace('__file__', configuration_file_dir)
-
     # Parse the time boundaries
-    now = datetime.datetime.now()
-    end = None if not 'end_time' in config else min(now, datetime.datetime(**config['end_time']))
-    start = None if not 'start_time' in config else datetime.datetime(**config['start_time'])
-    duration = max(delta_3_hours, datetime.timedelta(**config.get('time_slice_duration', {'days':2} )))
+    runtime_config['end'] = None if not 'end_time' in config else datetime.datetime(**config['end_time'])
+    runtime_config['start'] = None if not 'start_time' in config else datetime.datetime(**config['start_time'])
+    runtime_config['duration'] = max(delta_3_hours, datetime.timedelta(**config.get('time_slice_duration', {'days':2} )))
 
-    matches_per_time_slice = config.get('matches_per_time_slice', 2000)
-    matches_per_file = config.get('matches_per_file', 0)
+    runtime_config['matches_per_time_slice'] = config.get('matches_per_time_slice', 10000)
 
-    queue = Queue[config.get('queue', Queue.RANKED_SOLO_5x5.name)]
-    map_type = Maps[config.get('map', Maps.SUMMONERS_RIFT.name)]
-    minimum_tier = Tier.parse(config.get('minimum_tier', Tier.bronze.name).lower())
 
-    include_timeline = config.get('include_timeline', True)
+    runtime_config['queue'] = Queue[config.get('queue', Queue.RANKED_SOLO_5x5.name)]
+    runtime_config['map_type'] = Maps[config.get('map', Maps.SUMMONERS_RIFT.name)]
+    runtime_config['minimum_tier'] = Tier.parse(config.get('minimum_tier', Tier.bronze.name).lower())
+
+    runtime_config['include_timeline'] = config.get('include_timeline', True)
 
     seed_players = list(summoner_names_to_id(config['seed_players']).values())
-    seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, queue))
+    seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, runtime_config['queue']))
 
     checkpoint_players = config.get('checkpoint_players', None)
+
     if checkpoint_players:
         checkpoint_players_by_tier = TierSeed().from_json(checkpoint_players)
         seed_players_by_tier.update(checkpoint_players_by_tier)
-        if prints_on:
+        if runtime_config['prints_on']:
             print("Loaded {} players from the checkpoint".format(len(checkpoint_players_by_tier)))
 
-    seed_players_by_tier.remove_players_below_tier(minimum_tier)
+    seed_players_by_tier.remove_players_below_tier(runtime_config['minimum_tier'])
 
-    base_file_name = config.get('base_file_name', '')
+    runtime_config['seed_players_by_tier'] = seed_players_by_tier
 
-    def time_slice_end_callback(time_slice_end, players_to_analyze, total_matches, matches_in_time_slice, maximum_downloaded_id):
+    runtime_config['end_of_time_slice_callback'] = time_slice_end_callback
+    runtime_config['minimum_match_id'] = config.get('minimum_match_id', 0)
+    runtime_config['starting_matches_in_first_time_slice'] = config.get('matches_in_time_slice', 0)
+
+    runtime_config['match_downloaded_callback'] = store_callback
+    runtime_config['seed_players_by_tier'] = seed_players_by_tier
+
+    download_matches(**runtime_config)
+
+def time_slice_end_callback(config_file, time_slice_end, players_to_analyze, total_matches, matches_in_time_slice, maximum_downloaded_id):
         current_state={}
         current_state['start_time'] = datetime_to_dict(time_slice_end)
         current_state['checkpoint_players'] = players_to_analyze.to_json()
@@ -188,20 +193,6 @@ def download_from_config(config, config_file, save_state=True, store_callback = 
         current_state['matches_in_time_slice'] = matches_in_time_slice
         with open(config_file+current_state_extension, 'wt') as state:
             state.write(dumps(current_state, cls=JSONConfigEncoder, indent=4, sort_keys=True))
-
-    ts_end_callback = time_slice_end_callback if save_state else None
-    minimum_match_id = config.get('minimum_match_id', 0)
-    starting_matches_in_first_time_slice = config.get('matches_in_time_slice', 0)
-
-    if not store_callback:
-        with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
-            download_matches(make_store_callback(store), seed_players_by_tier._tiers, minimum_tier, start, end, duration,
-                             include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
-                             prints_on, minimum_match_id, starting_matches_in_first_time_slice)
-    else:
-        download_matches(store_callback, seed_players_by_tier._tiers, minimum_tier, start, end, duration,
-                             include_timeline, matches_per_time_slice, map_type, queue, ts_end_callback,
-                             prints_on, minimum_match_id, starting_matches_in_first_time_slice)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -221,7 +212,18 @@ def main():
         current_state = loads(state.read())
         json_conf.update(current_state)
 
-    download_from_config(json_conf, args.configuration_file, not args.no_state)
+    base_file_name = json_conf.get('base_file_name', '')
+    matches_per_file = json_conf.get('matches_per_file', 0)
+    destination_directory = json_conf['destination_directory']
+    # Allow the directory to be relative to the config file.
+    if destination_directory.startswith('__file__'):
+        configuration_file_dir = os.path.dirname(os.path.realpath(args.configuration_file))
+        destination_directory=destination_directory.replace('__file__', configuration_file_dir)
+
+    checkpoint_callback = lambda *args, **kwargs: time_slice_end_callback(args.configuration_file, *args, **kwargs) if not args.no_state else None
+
+    with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
+        download_from_config(json_conf, make_store_callback(store), checkpoint_callback)
 
 if __name__ == '__main__':
     main()

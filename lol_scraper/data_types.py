@@ -85,6 +85,12 @@ class TierSet():
                 if to_add:
                     self._tiers[tier] = set(to_add)
 
+    def __bool__(self):
+        for set in self._tiers.values():
+            if set:
+                return True
+        return False
+
     def __len__(self):
         length = 0
         for set in self._tiers.values():

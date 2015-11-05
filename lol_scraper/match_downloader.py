@@ -43,7 +43,10 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
     matches_to_download_by_tier = TierSet()
     analyzed_players = TierSeed()
     try:
-        while players_to_analyze or matches_to_download_by_tier:
+        while (players_to_analyze or matches_to_download_by_tier) and\
+                not conf.get('exit', False):
+                # ^ allow externally to stop the script by changing the provided configuration
+
             for tier in Tier.equals_and_above(Tier.parse(conf['minimum_tier'])):
                 try:
                     if conf['prints_on']:

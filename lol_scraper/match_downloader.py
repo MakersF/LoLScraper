@@ -29,12 +29,12 @@ def riot_time(dt):
 
 def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf):
 
-    def checkpoint(players_to_analyze, total_matches, max_match_id):
+    def checkpoint(players_to_analyze, analyzed_players, downloaded_matches, total_matches, max_match_id):
         if conf['prints_on']:
                 print("{} - Reached the checkpoint."
                       .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), total_matches))
         if end_of_time_slice_callback:
-            end_of_time_slice_callback(players_to_analyze, total_matches, max_match_id)
+            end_of_time_slice_callback(players_to_analyze, analyzed_players, downloaded_matches, total_matches, max_match_id)
 
     players_to_analyze = TierSeed(tiers=conf['seed_players_by_tier']._tiers)
 
@@ -90,7 +90,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                             raise e
     finally:
         #Always call the checkpoint, so that we can resume the download in case of exceptions.
-        checkpoint(players_to_analyze, total_matches, conf['minimum_match_id'])
+        checkpoint(players_to_analyze, analyzed_players, downloaded_matches, total_matches, conf['minimum_match_id'])
 
 def prepare_config(config):
 
@@ -153,9 +153,9 @@ def download_from_config(conf, store_callback, checkpoint_callback):
 
     download_matches(store_callback, checkpoint_callback, runtime_config)
 
-def time_slice_end_callback(config_file, players_to_analyze, total_matches, maximum_downloaded_id):
+def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, downloaded_matches, total_matches, max_match_id):
         current_state={}
-        current_state['minimum_match_id'] = maximum_downloaded_id
+        current_state['minimum_match_id'] = max_match_id
         current_state['checkpoint_players'] = players_to_analyze.to_json()
         with open(config_file+current_state_extension, 'wt') as state:
             state.write(dumps(current_state, cls=JSONConfigEncoder, indent=4))

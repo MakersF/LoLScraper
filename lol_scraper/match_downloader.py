@@ -69,7 +69,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     for match_id in matches_to_download_by_tier.consume(tier, 10, 0.2):
                         match = get_match(match_id, conf['include_timeline'])
                         if match.mapId == Maps[conf['map_type']].value:
-                            match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), conf['queue'])
+                            match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
                             if match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])):
                                 conf['minimum_match_id'] = max(match_id, conf['minimum_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)

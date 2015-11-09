@@ -29,16 +29,17 @@ def riot_time(dt):
 
 def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf):
 
-    def checkpoint(players_to_analyze, analyzed_players, downloaded_matches, total_matches, max_match_id):
+    def checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id):
         if conf['prints_on']:
                 print("{} - Reached the checkpoint."
                       .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), total_matches))
         if end_of_time_slice_callback:
-            end_of_time_slice_callback(players_to_analyze, analyzed_players, downloaded_matches, total_matches, max_match_id)
+            end_of_time_slice_callback(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id)
 
     players_to_analyze = TierSeed(tiers=conf['seed_players_by_tier']._tiers)
 
     total_matches = 0
+    conf['maximum_downloaded_match_id'] = 0
     downloaded_matches = set()
     matches_to_download_by_tier = TierSet()
     analyzed_players = TierSeed()
@@ -71,7 +72,8 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         if match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
                             if match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])):
-                                conf['minimum_match_id'] = max(match_id, conf['minimum_match_id'])
+
+                                conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)
                                 total_matches += 1
                             downloaded_matches.add(match_id)
@@ -90,7 +92,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                             raise e
     finally:
         #Always call the checkpoint, so that we can resume the download in case of exceptions.
-        checkpoint(players_to_analyze, analyzed_players, downloaded_matches, total_matches, conf['minimum_match_id'])
+        checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, conf['maximum_downloaded_match_id'])
 
 def prepare_config(config):
 
@@ -112,6 +114,7 @@ def prepare_config(config):
 
     runtime_config['include_timeline'] = config.get('include_timeline', True)
 
+    runtime_config['minimum_match_id'] = config.get('minimum_match_id', 0)
     seed_players = list(summoner_names_to_id(config['seed_players']).values())
     seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
 
@@ -153,10 +156,10 @@ def download_from_config(conf, store_callback, checkpoint_callback):
 
     download_matches(store_callback, checkpoint_callback, runtime_config)
 
-def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, downloaded_matches, total_matches, max_match_id):
+def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id):
         current_state={}
         current_state['minimum_match_id'] = max_match_id
-        current_state['checkpoint_players'] = players_to_analyze.to_json()
+        current_state['seed_players_by_tier'] = players_to_analyze.to_json()
         with open(config_file+current_state_extension, 'wt') as state:
             state.write(dumps(current_state, cls=JSONConfigEncoder, indent=4))
 

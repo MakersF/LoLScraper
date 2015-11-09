@@ -37,12 +37,13 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
         if end_of_time_slice_callback:
             end_of_time_slice_callback(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id)
 
-    players_to_analyze = TierSeed(tiers=conf['seed_players_by_tier']._tiers)
+    players_to_analyze = TierSeed(tiers=conf['seed_players_by_tier'])
 
     total_matches = 0
     conf['maximum_downloaded_match_id'] = 0
-    downloaded_matches = set()
-    matches_to_download_by_tier = TierSet()
+    downloaded_matches = set(conf['downloaded_matches'])
+
+    matches_to_download_by_tier = conf['matches_to_download_by_tier']
     analyzed_players = TierSeed()
     try:
         while (players_to_analyze or matches_to_download_by_tier) and\
@@ -54,6 +55,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     if conf.get('exit', False):
                         # Check exit condition
                         break
+
                     if conf['prints_on']:
                         print("{} - Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
@@ -70,6 +72,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     if conf.get('exit', False):
                         # Check exit condition
                         break
+
                     if conf['prints_on']:
                         print("{} - Starting matches download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
@@ -85,6 +88,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                                 conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)
                                 total_matches += 1
+
                             downloaded_matches.add(match_id)
 
                     players_to_analyze -= analyzed_players
@@ -124,24 +128,18 @@ def prepare_config(config):
     runtime_config['include_timeline'] = config.get('include_timeline', True)
 
     runtime_config['minimum_match_id'] = config.get('minimum_match_id', 0)
-    seed_players = list(summoner_names_to_id(config['seed_players']).values())
-    seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
 
-    checkpoint_players = config.get('checkpoint_players', None)
+    runtime_config['downloaded_matches'] = config.get('downloaded_matches', [])
 
-    if checkpoint_players:
-        checkpoint_players_by_tier = TierSeed().from_json(checkpoint_players)
-        seed_players_by_tier.update(checkpoint_players_by_tier)
-        if runtime_config['prints_on']:
-            print("Loaded {} players from the checkpoint".format(len(checkpoint_players_by_tier)))
+    runtime_config['matches_to_download_by_tier'] = config.get('matches_to_download_by_tier', TierSet())
 
-    seed_players_by_tier.remove_players_below_tier(Tier.parse(runtime_config['minimum_tier']))
+    runtime_config['seed_players_by_tier'] = config.get('seed_players_by_tier', None)
 
-    runtime_config['seed_players_by_tier'] = seed_players_by_tier
-
-    runtime_config['minimum_match_id'] = config.get('minimum_match_id', 0)
-
-    runtime_config['seed_players_by_tier'] = seed_players_by_tier
+    if not runtime_config['seed_players_by_tier']:
+        seed_players = list(summoner_names_to_id(config['seed_players']).values())
+        seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
+        seed_players_by_tier.remove_players_below_tier(Tier.parse(runtime_config['minimum_tier']))
+        runtime_config['seed_players_by_tier'] = seed_players_by_tier._tiers
 
     return runtime_config
 

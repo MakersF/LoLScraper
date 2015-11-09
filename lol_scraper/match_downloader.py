@@ -4,6 +4,7 @@ import os
 import argparse
 from json import loads, dumps
 from time import sleep
+from itertools import takewhile
 
 from cassiopeia import baseriotapi
 from cassiopeia.dto.matchlistapi import get_match_list
@@ -50,6 +51,9 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
 
             for tier in Tier.equals_and_above(Tier.parse(conf['minimum_tier'])):
                 try:
+                    if conf.get('exit', False):
+                        # Check exit condition
+                        break
                     if conf['prints_on']:
                         print("{} - Starting player download for tier {}. Players in queue: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze)))
@@ -62,12 +66,16 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                                 matches_to_download_by_tier[tier].add(match_id)
                         analyzed_players[tier].add(player_id)
 
+                    if conf.get('exit', False):
+                        # Check exit condition
+                        break
                     if conf['prints_on']:
                         print("{} - Starting matches download for tier {}. Downloads in queue: {}. Downloaded: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name,
                                       len(matches_to_download_by_tier), total_matches))
 
-                    for match_id in matches_to_download_by_tier.consume(tier, 10, 0.2):
+                    for match_id in takewhile(lambda x: not conf.get('exit', False),
+                                              matches_to_download_by_tier.consume(tier, 10, 0.2)):
                         match = get_match(match_id, conf['include_timeline'])
                         if match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])

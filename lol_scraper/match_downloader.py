@@ -63,7 +63,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         match_list = get_match_list(player_id, begin_time=riot_time(conf['start']), end_time=riot_time(conf['end']), ranked_queues=conf['queue'])
                         for match in match_list.matches:
                             match_id = match.matchId
-                            if not match_id in downloaded_matches and match_id > conf['minimum_match_id']:
+                            if match_id > conf['minimum_match_id']:
                                 matches_to_download_by_tier[tier].add(match_id)
                         analyzed_players[tier].add(player_id)
 
@@ -80,8 +80,8 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         match = get_match(match_id, conf['include_timeline'])
                         if match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
-                            if match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])):
 
+                            if  match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])):
                                 conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)
                                 total_matches += 1

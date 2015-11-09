@@ -81,7 +81,10 @@ class TierSet():
         self._tiers = defaultdict(set)
         if tiers:
             for tier in Tier:
-                to_add = tiers.get(tier, None)
+                try:
+                    to_add = tiers[tier]
+                except KeyError:
+                    to_add = None
                 if to_add:
                     self._tiers[tier] = set(to_add)
 
@@ -110,6 +113,12 @@ class TierSet():
     def __isub__(self, other):
         self.difference_update(other)
         return self
+
+    def __contains__(self, item):
+        for set in self._tiers.values():
+            if item in set:
+                return True
+        return False
 
     def update_tier(self, values, tier):
         if values:

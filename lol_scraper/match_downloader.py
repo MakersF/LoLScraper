@@ -55,8 +55,9 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         # Check exit condition
                         break
                     if conf['prints_on']:
-                        print("{} - Starting player download for tier {}. Players in queue: {}"
-                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze)))
+                        print("{} - Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
+                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
+                                      len(matches_to_download_by_tier), total_matches))
 
                     for player_id in players_to_analyze.consume(tier, 10):
                         match_list = get_match_list(player_id, begin_time=riot_time(conf['start']), end_time=riot_time(conf['end']), ranked_queues=conf['queue'])
@@ -70,8 +71,8 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         # Check exit condition
                         break
                     if conf['prints_on']:
-                        print("{} - Starting matches download for tier {}. Downloads in queue: {}. Downloaded: {}"
-                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name,
+                        print("{} - Starting matches download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
+                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
                                       len(matches_to_download_by_tier), total_matches))
 
                     for match_id in takewhile(lambda x: not conf.get('exit', False),

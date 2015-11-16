@@ -122,6 +122,10 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     # Connection error. You are unable to reach out to the network. Sleep!
                     sleep(60)
                     continue
+                except Exception as e:
+                    logger.critical("Encountered unexpected exception {}"
+                                    .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                    continue
 
     finally:
         #Always call the checkpoint, so that we can resume the download in case of exceptions.

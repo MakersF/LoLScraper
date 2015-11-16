@@ -1,10 +1,13 @@
 from contextlib import closing, suppress
+import logging
 import datetime
 import os
 import argparse
+
 from json import loads, dumps
 from time import sleep
 from itertools import takewhile
+from urllib.error import URLError
 
 from cassiopeia import baseriotapi
 from cassiopeia.dto.matchlistapi import get_match_list
@@ -29,11 +32,15 @@ def riot_time(dt):
     return int(unix_time(dt) * 1000)
 
 def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf):
+    logger = logging.getLogger(__name__)
+    if conf['logging_level'] != logging.NOTSET:
+        logger.setLevel(conf['logging_level'])
+    else:
+        # possibily set the level to warning
+        pass
 
     def checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id):
-        if conf['prints_on']:
-                print("{} - Reached the checkpoint."
-                      .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), total_matches))
+        logger.info("Reached the checkpoint.".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), total_matches))
         if end_of_time_slice_callback:
             end_of_time_slice_callback(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id)
 
@@ -42,22 +49,24 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
     total_matches = 0
     conf['maximum_downloaded_match_id'] = 0
     downloaded_matches = set(conf['downloaded_matches'])
+    logger.info("{} previously downloaded matches".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), len(downloaded_matches)))
 
     matches_to_download_by_tier = conf['matches_to_download_by_tier']
+    logger.info("{} matches to download".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), len(matches_to_download_by_tier)))
     analyzed_players = TierSeed()
     try:
+        logger.info("Starting fetching..".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S")))
+
         while (players_to_analyze or matches_to_download_by_tier) and\
                 not conf.get('exit', False):
-                # ^ allow externally to stop the script by changing the provided configuration
 
             for tier in Tier.equals_and_above(Tier.parse(conf['minimum_tier'])):
                 try:
                     if conf.get('exit', False):
-                        # Check exit condition
+                        logger.info("Got exit request".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S")))
                         break
 
-                    if conf['prints_on']:
-                        print("{} - Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
+                    logger.info("Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
                                       len(matches_to_download_by_tier), total_matches))
 
@@ -70,21 +79,20 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         analyzed_players[tier].add(player_id)
 
                     if conf.get('exit', False):
-                        # Check exit condition
+                        logger.info("Got exit request".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S")))
                         break
 
-                    if conf['prints_on']:
-                        print("{} - Starting matches download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
+                    logger.info("Starting matches download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
                               .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
                                       len(matches_to_download_by_tier), total_matches))
 
-                    for match_id in takewhile(lambda x: not conf.get('exit', False),
+                    for match_id in takewhile(lambda _: not conf.get('exit', False),
                                               matches_to_download_by_tier.consume(tier, 10, 0.2)):
                         match = get_match(match_id, conf['include_timeline'])
                         if match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
 
-                            if  match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])):
+                            if  match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) and match.matchVersion >= conf['minimum_patch']:
                                 conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)
                                 total_matches += 1
@@ -94,15 +102,27 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     players_to_analyze -= analyzed_players
 
                 except APIError as e:
-                        if 400 <= e.error_code < 600:
-                            # Might be a connection problem
-                            if conf['prints_on']:
-                                print("{} - Encountered error {}"
-                                        .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
-                            sleep(5)
-                            continue
-                        else:
-                            raise e
+                    if 400 <= e.error_code < 500:
+                        # Might be a connection problem
+                        logger.warning("Encountered error {}".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                        sleep(5)
+                        continue
+                    elif 500 <= e.error_code < 600:
+                        # Server problem. Let's give it some time
+                        logger.warning("Encountered error {}".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                        sleep(30)
+                        continue
+                    else:
+                        logger.error("Encountered error {}".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                        sleep(30)
+                        continue
+                except URLError as e:
+                    logger.error("Encountered error {}. You are having connection issues"
+                                .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                    # Connection error. You are unable to reach out to the network. Sleep!
+                    sleep(60)
+                    continue
+
     finally:
         #Always call the checkpoint, so that we can resume the download in case of exceptions.
         checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, conf['maximum_downloaded_match_id'])
@@ -111,7 +131,8 @@ def prepare_config(config):
 
     runtime_config = {}
 
-    runtime_config['prints_on'] = config.get('prints_on', False)
+    runtime_config['logging_level'] = logging._nameToLevel[config.get('logging_level', 'NOTSET')]
+
 
     # Parse the time boundaries
     runtime_config['end'] = None if not 'end_time' in config else datetime.datetime(**config['end_time'])
@@ -121,6 +142,7 @@ def prepare_config(config):
         runtime_config['start'] = (runtime_config['end'] if runtime_config['end'] else datetime.datetime.now()) - delta_30_days
 
 
+    runtime_config['minimum_patch'] = config.get('minimum_patch', "")
     runtime_config['queue'] = config.get('queue', Queue.RANKED_SOLO_5x5.name)
     runtime_config['map_type'] = config.get('map', Maps.SUMMONERS_RIFT.name)
     runtime_config['minimum_tier'] = config.get('minimum_tier', Tier.bronze.name).lower()
@@ -201,4 +223,9 @@ if __name__ == '__main__':
                                                            'resumed from the last state saved',
                         default=False)
     args = parser.parse_args()
+
+    logging.basicConfig(format='%(asctime)s, %(levelname)s, %(name)s, %(message)s',
+                        datefmt="%m-%d %H:%M:%S",
+                        level=logging.INFO)
+
     main(args.configuration_file, args.no_state)

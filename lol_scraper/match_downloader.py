@@ -22,6 +22,7 @@ version_key = 'current_version'
 current_state_extension = '.checkpoint'
 delta_30_days = datetime.timedelta(days=30)
 cache = SimpleCache()
+LATEST = "latest"
 
 def make_store_callback(store):
     def store_callback(match, tier):
@@ -36,7 +37,7 @@ def riot_time(dt):
 def check_minimum_patch(patch, minimum):
     if not minimum:
         return True
-    if minimum.lower() != "latest":
+    if minimum.lower() != LATEST:
         return patch >= minimum
     else:
         version = cache.get(version_key)
@@ -201,7 +202,7 @@ def setup_riot_api(conf):
     baseriotapi.set_region(cassioepia['region'])
 
     limits = cassioepia.get('rate_limits', None)
-    if limits:
+    if limits is not None:
         if isinstance(limits[0], list):
             baseriotapi.set_rate_limits(*limits)
         else:
@@ -222,7 +223,7 @@ def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, m
         with open(config_file+current_state_extension, 'wt') as state:
             state.write(dumps(current_state, cls=JSONConfigEncoder, indent=4))
 
-def main(configuration_file, no_state):
+def main(configuration_file, no_state=False):
     with open(configuration_file, 'rt') as config_file:
         json_conf = loads(config_file.read())
 

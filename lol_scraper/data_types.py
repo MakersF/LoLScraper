@@ -2,6 +2,7 @@ from collections import defaultdict, namedtuple
 from enum import Enum, unique
 import datetime
 import math
+import time as _time
 
 @unique
 class Queue(Enum):
@@ -196,6 +197,29 @@ class TimeSlice(namedtuple('TimeSliceBase', ['begin', 'end'])):
     def __str__(self):
         return "({},{})".format(datetime.datetime.utcfromtimestamp(self.begin/1000),
                                 datetime.datetime.utcfromtimestamp(self.end/1000))
+
+class SimpleCache():
+
+    def __init__(self):
+        self.store = {}
+
+    def set(self, key, value, time):
+        self.store[key] = (value, time, _time.time())
+
+    def get(self, key, default=None):
+        item = self.store.get(key, None)
+        if item is None:
+            return default
+        else:
+            value, time, put_time = item
+            current_time = _time.time()
+            if put_time + time > current_time:
+                # it is still valid
+                return value
+            else:
+                # expired value
+                del self.store[key]
+                return default
 
 epoch = datetime.datetime.utcfromtimestamp(0)
 

@@ -26,7 +26,7 @@ LoLScraper will
 
  - store the matches as compressed files
  - sleep while waiting for the rate limits, not consuming CPU time
- - efficiently use memory to avoid repetitions of matches and players (by clearing the matches and players history between time slices)
+ - avoids pulling matches only from a few players
 
 ##Configurable
 While the example configuration is extremely short and easy to use, the available options cover all the needs. 
@@ -38,7 +38,7 @@ If the `destination_directory` element starts with `__file__`, `__file__` will b
 
 ##Customizable
 If your needs are different from the usual ones, you can import LoLScraper as a library.
-The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py#L25) takes a `store_callback` function in addition to all the parameters the configuration file exposes. The function is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it. 
+The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py) takes a `store_callback` function in addition to the configuration parameters file exposes. The callback is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it. 
 
 ##Setup
 No need to install it. Just download the repository, and call

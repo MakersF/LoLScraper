@@ -24,6 +24,8 @@
   "time_slice_duration": {
     "days": 2
   },
+  "logging_level" : "INFO",
+  "minimum_patch" : "latest",
   "matches_per_time_slice": 2000,
   "matches_per_file": 100,
   "map": "SUMMONERS_RIFT",

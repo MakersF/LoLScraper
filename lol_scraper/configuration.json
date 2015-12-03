@@ -33,6 +33,12 @@
   "time_slice_duration": {
     "days": 2
   },
+    "logging_level_optional" : true,
+    "logging_level_doc" : "Specify what to log. It accept any of the python logging level",
+  "logging_level" : "INFO",
+    "minimum_patch_optional" : true,
+    "minimum_path_doc" : "Specify the minimum patch to download. If set as 'latest' only store the most recent one. Note that there is no patch information in the matchlist, so all matches will be downloaded, even if from a previous patch. To avoid this, set the day to they day of the latest patch.",
+  "minimum_patch" : "latest",
     "time_slice_duration_optional": true,
     "time_slice_duration_doc": "Define how long are the parts in which is divided the period between start and end. Shorter periods will use less RAM, longer periods will have a better distribution of players and matches",
   "matches_per_time_slice": 2000,

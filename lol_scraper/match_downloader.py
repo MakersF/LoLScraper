@@ -14,12 +14,14 @@ from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
 from cassiopeia.type.api.exception import APIError
 
-from .persist import TierStore, JSONConfigEncoder
-from .data_types import TierSet, TierSeed, Tier, Queue, Maps, unix_time
-from .summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
+from lol_scraper.persist import TierStore, JSONConfigEncoder
+from lol_scraper.data_types import TierSet, TierSeed, Tier, Queue, Maps, unix_time, SimpleCache
+from lol_scraper.summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
 
+version_key = 'current_version'
 current_state_extension = '.checkpoint'
 delta_30_days = datetime.timedelta(days=30)
+cache = SimpleCache()
 
 def make_store_callback(store):
     def store_callback(match, tier):
@@ -30,6 +32,28 @@ def riot_time(dt):
     if dt is None:
         dt = datetime.datetime.now()
     return int(unix_time(dt) * 1000)
+
+def check_minimum_patch(patch, minimum):
+    if not minimum:
+        return True
+    if minimum.lower() != "latest":
+        return patch >= minimum
+    else:
+        version = cache.get(version_key)
+        if version is None:
+            # Fetch version and put it in cache
+            try:
+                version_extended = baseriotapi.get_versions()[0]
+                version = ".".join(version_extended.split(".")[:2])
+                cache.set(version_key, version, 60*60) # once every hour
+                logging.getLogger(__name__).info("Fetching version {}".format(version))
+            except:
+                # in case the connection failed, do not store it, and try next round
+                # Reject every version as we are not sure which is the latest version
+                # and we don't want to pollute the data with patches with the wrong version
+                return False
+        return patch >= version
+
 
 def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf):
     logger = logging.getLogger(__name__)
@@ -60,23 +84,27 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
         while (players_to_analyze or matches_to_download_by_tier) and\
                 not conf.get('exit', False):
 
+            # When an exception is raised, the loop starts again. If the player download part raises exceptions often, it will be skipped
+            # many times while we always download players. This tries to fix it
+            working_on_matches = False
+
             for tier in Tier.equals_and_above(Tier.parse(conf['minimum_tier'])):
                 try:
                     if conf.get('exit', False):
                         logger.info("Got exit request")
                         break
 
-                    logger.info("Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
-                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
-                                      len(matches_to_download_by_tier), total_matches))
+                    if not working_on_matches:
+                        logger.info("Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
+                                  .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier), total_matches))
 
-                    for player_id in players_to_analyze.consume(tier, 10):
-                        match_list = get_match_list(player_id, begin_time=riot_time(conf['start']), end_time=riot_time(conf['end']), ranked_queues=conf['queue'])
-                        for match in match_list.matches:
-                            match_id = match.matchId
-                            if match_id > conf['minimum_match_id']:
-                                matches_to_download_by_tier[tier].add(match_id)
-                        analyzed_players[tier].add(player_id)
+                        for player_id in players_to_analyze.consume(tier, 10):
+                            match_list = get_match_list(player_id, begin_time=riot_time(conf['start']), end_time=riot_time(conf['end']), ranked_queues=conf['queue'])
+                            for match in match_list.matches:
+                                match_id = match.matchId
+                                if match_id > conf['minimum_match_id']:
+                                    matches_to_download_by_tier[tier].add(match_id)
+                            analyzed_players[tier].add(player_id)
 
                     if conf.get('exit', False):
                         logger.info("Got exit request")
@@ -85,18 +113,20 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     logger.info("Starting matches download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
                               .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier), total_matches))
 
+                    working_on_matches = True
                     for match_id in takewhile(lambda _: not conf.get('exit', False),
                                               matches_to_download_by_tier.consume(tier, 10, 0.2)):
                         match = get_match(match_id, conf['include_timeline'])
                         if match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
 
-                            if  match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) and match.matchVersion >= conf['minimum_patch']:
+                            if  match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) and check_minimum_patch(match.matchVersion,conf['minimum_patch']):
                                 conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)
                                 total_matches += 1
 
                             downloaded_matches.add(match_id)
+                    working_on_matches = False
 
                     players_to_analyze -= analyzed_players
 

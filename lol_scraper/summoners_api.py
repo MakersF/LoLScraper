@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from .data_types import Tier, Queue
+from data_types import Tier, Queue
 from cassiopeia.dto.summonerapi import get_summoners_by_name
 from cassiopeia.dto.leagueapi import get_league_entries_by_summoner
 

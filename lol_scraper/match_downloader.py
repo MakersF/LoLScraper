@@ -36,7 +36,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
     if conf['logging_level'] != logging.NOTSET:
         logger.setLevel(conf['logging_level'])
     else:
-        # possibily set the level to warning
+        # possibly set the level to warning
         pass
 
     def checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id):
@@ -49,13 +49,13 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
     total_matches = 0
     conf['maximum_downloaded_match_id'] = 0
     downloaded_matches = set(conf['downloaded_matches'])
-    logger.info("{} previously downloaded matches".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), len(downloaded_matches)))
+    logger.info("{} previously downloaded matches".format(len(downloaded_matches)))
 
     matches_to_download_by_tier = conf['matches_to_download_by_tier']
-    logger.info("{} matches to download".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), len(matches_to_download_by_tier)))
+    logger.info("{} matches to download".format( len(matches_to_download_by_tier)))
     analyzed_players = TierSeed()
     try:
-        logger.info("Starting fetching..".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S")))
+        logger.info("Starting fetching..")
 
         while (players_to_analyze or matches_to_download_by_tier) and\
                 not conf.get('exit', False):
@@ -63,7 +63,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
             for tier in Tier.equals_and_above(Tier.parse(conf['minimum_tier'])):
                 try:
                     if conf.get('exit', False):
-                        logger.info("Got exit request".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S")))
+                        logger.info("Got exit request")
                         break
 
                     logger.info("Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
@@ -79,12 +79,11 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         analyzed_players[tier].add(player_id)
 
                     if conf.get('exit', False):
-                        logger.info("Got exit request".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S")))
+                        logger.info("Got exit request")
                         break
 
                     logger.info("Starting matches download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
-                              .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), tier.name, len(players_to_analyze),
-                                      len(matches_to_download_by_tier), total_matches))
+                              .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier), total_matches))
 
                     for match_id in takewhile(lambda _: not conf.get('exit', False),
                                               matches_to_download_by_tier.consume(tier, 10, 0.2)):
@@ -104,27 +103,24 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                 except APIError as e:
                     if 400 <= e.error_code < 500:
                         # Might be a connection problem
-                        logger.warning("Encountered error {}".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
-                        sleep(5)
+                        logger.warning("Encountered error {}".format(e))
+                        sleep(2)
                         continue
                     elif 500 <= e.error_code < 600:
                         # Server problem. Let's give it some time
-                        logger.warning("Encountered error {}".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
-                        sleep(30)
+                        logger.warning("Encountered error {}".format(e))
+                        sleep(2)
                         continue
                     else:
-                        logger.error("Encountered error {}".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
-                        sleep(30)
+                        logger.error("Encountered error {}".format(e))
                         continue
                 except URLError as e:
-                    logger.error("Encountered error {}. You are having connection issues"
-                                .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                    logger.error("Encountered error {}. You are having connection issues".format(e))
                     # Connection error. You are unable to reach out to the network. Sleep!
-                    sleep(60)
+                    sleep(10)
                     continue
                 except Exception as e:
-                    logger.critical("Encountered unexpected exception {}"
-                                    .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), e))
+                    logger.critical("Encountered unexpected exception {}".format(e))
                     continue
 
     finally:

@@ -121,7 +121,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         if match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
 
-                            if  match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) and check_minimum_patch(match.matchVersion,conf['minimum_patch']):
+                            if match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) and check_minimum_patch(match.matchVersion,conf['minimum_patch']):
                                 conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)
                                 total_matches += 1
@@ -230,6 +230,10 @@ def main(configuration_file, no_state=False):
     with suppress(FileNotFoundError), open(configuration_file+current_state_extension, 'rt') as state:
         current_state = loads(state.read())
         json_conf.update(current_state)
+        if "seed_players_by_tier" in json_conf:
+            # Parse the tier name to the an instance of the Tier class
+            json_conf['seed_players_by_tier'] = {Tier.parse(tier_name):players for tier_name, players in json_conf['seed_players_by_tier'].items()}
+
 
     base_file_name = json_conf.get('base_file_name', '')
     matches_per_file = json_conf.get('matches_per_file', 0)

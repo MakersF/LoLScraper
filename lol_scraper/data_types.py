@@ -149,7 +149,8 @@ class TierSet():
     def consume(self, tier, minimum_number=1, percentage=0):
         try:
             set = self._tiers[tier]
-            elements_to_consume = max(minimum_number, int(math.floor(percentage * len(set))))
+            length = len(set)
+            elements_to_consume = min(length, max(minimum_number, int(math.floor(percentage * length))))
             for _ in range(elements_to_consume):
                 yield set.pop()
         except KeyError:

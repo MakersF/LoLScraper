@@ -38,7 +38,9 @@ If the `destination_directory` element starts with `__file__`, `__file__` will b
 
 ##Customizable
 If your needs are different from the usual ones, you can import LoLScraper as a library.
-The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py) takes a `store_callback` function in addition to the configuration parameters file exposes. The callback is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it. To stop the fetching, set the key `exit` to `True` in the configuration dictionary you passed to the method.
+The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py) takes a `store_callback` function in addition to the configuration parameters file exposes. The callback is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it.
+
+To stop the fetching, set the key `exit` to `True` in the configuration dictionary you passed to the method.
 
 ##Setup
 No need to install it. Just download the repository, and call

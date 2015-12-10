@@ -151,7 +151,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     sleep(10)
                     continue
                 except Exception as e:
-                    logger.critical("Encountered unexpected exception {}".format(e))
+                    logger.exception("Encountered unexpected exception {}".format(e))
                     continue
 
     finally:
@@ -190,7 +190,17 @@ def prepare_config(config):
 
     if not runtime_config['seed_players_by_tier']:
         seed_players = list(summoner_names_to_id(config['seed_players']).values())
-        seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
+        seed_players_by_tier = None
+        while True:
+            try:
+                seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
+                break
+            except APIError:
+                logger = logging.getLogger(__name__)
+                logger.exception("APIError while initializing the script")
+                # sometimes the network might have problems during the start. We don't want to crash just
+                # because of that. Keep trying!
+                sleep(5)
         seed_players_by_tier.remove_players_below_tier(Tier.parse(runtime_config['minimum_tier']))
         runtime_config['seed_players_by_tier'] = seed_players_by_tier._tiers
 

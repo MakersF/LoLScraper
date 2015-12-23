@@ -43,7 +43,9 @@ The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/mas
 To stop the fetching, set the key `exit` to `True` in the configuration dictionary you passed to the method.
 
 ##Setup
-No need to install it. Just download the repository, and call
+If you want to use LolScraper as a library, you can install it with
+`pip install lol_scraper`
+If you want to use it as a script, there is no need to install it. Just download the repository, and call
 `python3 match_downloader.py configuration_file.json`
 
 ##Dependencies

@@ -103,7 +103,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                                   .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier), total_matches))
 
                         for player_id in players_to_analyze.consume(tier, 10):
-                            if not player_id in analyzed_players:
+                            if player_id not in analyzed_players:
                                 match_list = get_match_list(player_id, begin_time=riot_time(conf['start']), end_time=riot_time(conf['end']), ranked_queues=conf['queue'])
                                 for match in match_list.matches:
                                     match_id = match.matchId
@@ -196,10 +196,10 @@ def prepare_config(config):
     runtime_config['seed_players_by_tier'] = config.get('seed_players_by_tier', None)
 
     if not runtime_config['seed_players_by_tier']:
-        seed_players = list(summoner_names_to_id(config['seed_players']).values())
         seed_players_by_tier = None
         while True:
             try:
+                seed_players = list(summoner_names_to_id(config['seed_players']).values())
                 seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
                 break
             except APIError:

@@ -3,6 +3,7 @@ import logging
 import datetime
 import os
 import argparse
+import random
 
 from json import loads, dumps
 from time import sleep
@@ -23,6 +24,8 @@ current_state_extension = '.checkpoint'
 delta_30_days = datetime.timedelta(days=30)
 cache = SimpleCache()
 LATEST = "latest"
+MAX_ANALYZED_PLAYERS_SIZE = 50000
+EVICTION_RATE = 0.5 # Half of the analyzed players
 
 def make_store_callback(store):
     def store_callback(match, tier):
@@ -78,7 +81,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
 
     matches_to_download_by_tier = conf['matches_to_download_by_tier']
     logger.info("{} matches to download".format( len(matches_to_download_by_tier)))
-    analyzed_players = TierSeed()
+    analyzed_players = set()
     try:
         logger.info("Starting fetching..")
 
@@ -100,12 +103,13 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                                   .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier), total_matches))
 
                         for player_id in players_to_analyze.consume(tier, 10):
-                            match_list = get_match_list(player_id, begin_time=riot_time(conf['start']), end_time=riot_time(conf['end']), ranked_queues=conf['queue'])
-                            for match in match_list.matches:
-                                match_id = match.matchId
-                                if match_id > conf['minimum_match_id']:
-                                    matches_to_download_by_tier[tier].add(match_id)
-                            analyzed_players[tier].add(player_id)
+                            if not player_id in analyzed_players:
+                                match_list = get_match_list(player_id, begin_time=riot_time(conf['start']), end_time=riot_time(conf['end']), ranked_queues=conf['queue'])
+                                for match in match_list.matches:
+                                    match_id = match.matchId
+                                    if match_id > conf['minimum_match_id']:
+                                        matches_to_download_by_tier[tier].add(match_id)
+                                analyzed_players.add(player_id)
 
                     if conf.get('exit', False):
                         logger.info("Got exit request")
@@ -129,7 +133,10 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                             downloaded_matches.add(match_id)
                     working_on_matches = False
 
-                    players_to_analyze -= analyzed_players
+                    # analyzed_players grows indefinitely. This doesn't make sense, as after a while a player have new matches
+                    # So when the list grows too big we remove a part of the players, so they can be analyzed again.
+                    if len(analyzed_players) > MAX_ANALYZED_PLAYERS_SIZE:
+                        analyzed_players = { player_id for player_id in analyzed_players if random.random() < EVICTION_RATE }
 
                 except APIError as e:
                     if 400 <= e.error_code < 500:

@@ -203,7 +203,7 @@ class SimpleCache():
     def __init__(self):
         self.store = {}
 
-    def set(self, key, value, time):
+    def set(self, key, value, time=0):
         self.store[key] = (value, time, _time.time())
 
     def get(self, key, default=None):
@@ -213,13 +213,50 @@ class SimpleCache():
         else:
             value, time, put_time = item
             current_time = _time.time()
-            if put_time + time > current_time:
+            # time = 0 means it never expires
+            if put_time + time > current_time or time == 0:
                 # it is still valid
                 return value
             else:
                 # expired value
                 del self.store[key]
                 return default
+
+def cache_autostore(key, duration, cache, args_to_str=None, on_change=None):
+    def make_key(*args, **kwargs):
+        if args_to_str:
+            return str(key) + args_to_str(*args, **kwargs)
+        else:
+            return key
+
+    def function_decorator(wrapped):
+        def wrapper(*args, **kwargs):
+            sentinel = object()
+            composed_key = make_key(*args, **kwargs)
+            # get the value
+            cached_value = cache.get(composed_key, sentinel)
+
+            # if the value is saved or expired
+            if cached_value is sentinel:
+                # call the function which gives the real value
+                new_value = wrapped(*args, **kwargs)
+                # store it
+                cache.set(composed_key, new_value, duration)
+                # if we want to be notified of the change
+                if on_change:
+                    # get the old value
+                    old = cache.get(composed_key + "_old")
+                    # set the new value
+                    cache.set(composed_key + "_old", new_value, 0)
+                    if old != new_value:
+                        on_change(old, new_value)
+                # Then return the new value
+                return new_value
+            else:
+                # The value stored was still fresh, return it
+                return cached_value
+        return wrapper
+    return function_decorator
 
 epoch = datetime.datetime.utcfromtimestamp(0)
 

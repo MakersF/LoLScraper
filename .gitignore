@@ -1,7 +1,10 @@
-.idea
 api-key
 *.pyc
-profiling
-test_configurations
+
+# IDEs
+.idea
+
+# Packaging
 *.egg-info
 dist/
+build/

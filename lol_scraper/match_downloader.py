@@ -4,6 +4,7 @@ import datetime
 import os
 import argparse
 import random
+import threading
 
 from json import loads, dumps
 from time import sleep
@@ -16,7 +17,7 @@ from cassiopeia.dto.matchapi import get_match
 from cassiopeia.type.api.exception import APIError
 
 from persist import TierStore, JSONConfigEncoder
-from data_types import TierSet, TierSeed, Tier, Queue, Maps, unix_time, SimpleCache
+from data_types import TierSet, TierSeed, Tier, Queue, Maps, unix_time, SimpleCache, cache_autostore
 from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
 
 version_key = 'current_version'
@@ -26,6 +27,9 @@ cache = SimpleCache()
 LATEST = "latest"
 MAX_ANALYZED_PLAYERS_SIZE = 50000
 EVICTION_RATE = 0.5 # Half of the analyzed players
+
+patch_changed_lock = threading.Lock()
+patch_changed = False
 
 def make_store_callback(store):
     def store_callback(match, tier):
@@ -37,26 +41,44 @@ def riot_time(dt):
         dt = datetime.datetime.now()
     return int(unix_time(dt) * 1000)
 
+def set_patch_changed(*args, **kwargs):
+    patch_changed_lock.aquire()
+    try:
+        global  patch_changed
+        patch_changed = True
+    finally:
+        patch_changed_lock.release()
+
+def get_patch_changed():
+    patch_changed_lock.aquire()
+    try:
+        global  patch_changed
+        return bool(patch_changed)
+    finally:
+        patch_changed_lock.release()
+
+cache_autostore(version_key, 60*60, cache, on_change=set_patch_changed)
+def get_last_patch_version():
+    version_extended = baseriotapi.get_versions()[0]
+    version = ".".join(version_extended.split(".")[:2])
+    logging.getLogger(__name__).info("Fetching version {}".format(version))
+    return version
+
 def check_minimum_patch(patch, minimum):
     if not minimum:
         return True
     if minimum.lower() != LATEST:
         return patch >= minimum
     else:
-        version = cache.get(version_key)
-        if version is None:
-            # Fetch version and put it in cache
-            try:
-                version_extended = baseriotapi.get_versions()[0]
-                version = ".".join(version_extended.split(".")[:2])
-                cache.set(version_key, version, 60*60) # once every hour
-                logging.getLogger(__name__).info("Fetching version {}".format(version))
-            except:
-                # in case the connection failed, do not store it, and try next round
-                # Reject every version as we are not sure which is the latest version
-                # and we don't want to pollute the data with patches with the wrong version
-                return False
-        return patch >= version
+        try:
+            version = get_last_patch_version()
+            return patch >= version
+        except:
+            # in case the connection failed, do not store it, and try next round
+            # Reject every version as we are not sure which is the latest version
+            # and we don't want to pollute the data with patches with the wrong version
+            return False
+
 
 
 def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf):
@@ -125,7 +147,9 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         if match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities, Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
 
-                            if match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) and check_minimum_patch(match.matchVersion,conf['minimum_patch']):
+                            if match_id not in downloaded_matches and match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier']))\
+                                    and check_minimum_patch(match.matchVersion,conf['minimum_patch']):
+
                                 conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)
                                 total_matches += 1
@@ -137,6 +161,11 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     # So when the list grows too big we remove a part of the players, so they can be analyzed again.
                     if len(analyzed_players) > MAX_ANALYZED_PLAYERS_SIZE:
                         analyzed_players = { player_id for player_id in analyzed_players if random.random() < EVICTION_RATE }
+
+                    # When a new patch is released, we can clear all the analyzed players and downloaded_matches if minimum_patch == 'latest'
+                    if conf['minimum_patch'].lower() != LATEST and get_patch_changed():
+                        analyzed_players = set()
+                        downloaded_matches = set()
 
                 except APIError as e:
                     if 400 <= e.error_code < 500:

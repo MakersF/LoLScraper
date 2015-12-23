@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import sys
-
 from setuptools import setup, find_packages
 
 
@@ -9,14 +7,15 @@ install_requires = [
     "cassiopeia"
 ]
 
+project_url = "https://github.com/MakersF/LoLScraper"
 setup(
     name="lol_scraper",
-    version="0.0.01",
+    version="0.0.02",
     author="Francesco Zoffoli",
     author_email="makers.f.dev@gmail.com",
-    url="https://github.com/MakersF/LoLScraper",
+    url=project_url,
     description="A python script and library to download and store League of Legends matches with Riot API",
-    long_description=open("README.md").read(),
+    long_description="Head to the github project page ({}) for a formatted description".format(project_url),
     keywords=["LoL", "League of Legends", "Riot Games", "API", "REST"],
     classifiers=[
         "Development Status :: 3 - Alpha",

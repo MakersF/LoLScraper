@@ -15,11 +15,14 @@ with config.json
     "region": "NA"
   },
   "destination_directory": "path-to-directory",
-  "seed_players": ["nightblue3", "feed l0rd"]
 }
 ```
 
-LoLScraper will look for recent matches of the seed players and start downloading and storing them. Then it will repeat the process for every player who played in those matches.
+##What It Does
+LoLScraper will look for recent matches of some initial players. You can provide the initial players ( called seed players), otherwise the challenger and master league players of the region you selected are used.
+Once it has a list of players, it downloads the match history of these players and downloads their matches.
+If the matches satisfy the conditions you put in the configuration file they are stored.
+Then, it adds the players which were in the stored match to its initial list of players and the process repeats.
 
 ##Efficient
 LoLScraper will
@@ -27,6 +30,7 @@ LoLScraper will
  - store the matches as compressed files
  - sleep while waiting for the rate limits, not consuming CPU time
  - avoids pulling matches only from a few players
+ - only downloads a match once ( no repetitions )
 
 ##Configurable
 While the example configuration is extremely short and easy to use, the available options cover all the needs. 
@@ -38,7 +42,8 @@ If the `destination_directory` element starts with `__file__`, `__file__` will b
 
 ##Customizable
 If your needs are different from the usual ones, you can import LoLScraper as a library.
-The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py) takes a `store_callback` function in addition to the configuration parameters file exposes. The callback is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it.
+The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py) takes a `store_callback` function in addition to the configuration parameters. The callback is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it.
+If you need more customization in setting the seed players you can use the `seed_players_by_tier` key in the configuration file.
 
 To stop the fetching, set the key `exit` to `True` in the configuration dictionary you passed to the method.
 

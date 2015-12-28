@@ -8,10 +8,11 @@ import threading
 
 from json import loads, dumps
 from time import sleep
-from itertools import takewhile
+from itertools import takewhile, chain
 from urllib.error import URLError
 
 from cassiopeia import baseriotapi
+from cassiopeia.dto.leagueapi import get_challenger, get_master
 from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
 from cassiopeia.type.api.exception import APIError
@@ -228,8 +229,21 @@ def prepare_config(config):
         seed_players_by_tier = None
         while True:
             try:
-                seed_players = list(summoner_names_to_id(config['seed_players']).values())
-                seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
+                config_seed_players = config.get('seed_players', None)
+                if config_seed_players is None:
+                    # Let's use challenger and master tier players as seed
+                    tiers = {
+                        Tier.challenger : map(lambda league_entry_dto: league_entry_dto.playerOrTeamId,
+                                                get_challenger(runtime_config['queue']).entries),
+                        Tier.master : map(lambda league_entry_dto: league_entry_dto.playerOrTeamId,
+                                                get_master(runtime_config['queue']).entries)
+                    }
+                    seed_players_by_tier = TierSeed(tiers=tiers)
+                else:
+                    # We have a list of seed players. Let's use it
+                    seed_players = list(summoner_names_to_id(config['seed_players']).values())
+                    seed_players_by_tier = TierSeed(tiers=leagues_by_summoner_ids(seed_players, Queue[runtime_config['queue']]))
+
                 break
             except APIError:
                 logger = logging.getLogger(__name__)

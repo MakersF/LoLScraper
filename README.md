@@ -20,8 +20,10 @@ with config.json
 
 ##What It Does
 LoLScraper will look for recent matches of some initial players. You can provide the initial players ( called seed players), otherwise the challenger and master league players of the region you selected are used.
+
 Once it has a list of players, it downloads the match history of these players and downloads their matches.
 If the matches satisfy the conditions you put in the configuration file they are stored.
+
 Then, it adds the players which were in the stored match to its initial list of players and the process repeats.
 
 ##Efficient

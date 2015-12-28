@@ -48,7 +48,8 @@ def get_patch_changed():
     finally:
         patch_changed_lock.release()
 
-cache_autostore(version_key, 60*60, cache, on_change=set_patch_changed)
+
+@cache_autostore(version_key, 60 * 60, cache, on_change=set_patch_changed)
 def get_last_patch_version():
     version_extended = baseriotapi.get_versions()[0]
     version = ".".join(version_extended.split(".")[:2])

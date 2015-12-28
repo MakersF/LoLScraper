@@ -35,6 +35,9 @@ class Tier(Enum):
     def __hash__(self):
         return self.value
 
+    def __eq__(self, other):
+        return hasattr(other, "value") and self.value == other.value
+
     def best(self, other):
         if self.value <= other.value:
             return self

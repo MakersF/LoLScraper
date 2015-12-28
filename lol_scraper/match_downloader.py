@@ -197,6 +197,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
 
     finally:
         # Always call the checkpoint, so that we can resume the download in case of exceptions.
+        logger.info("Calling checkpoint callback")
         checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches,
                    conf['maximum_downloaded_match_id'])
 

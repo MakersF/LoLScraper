@@ -5,7 +5,7 @@ LoLScraper is a python script to download and store League of Legends matches wi
 ##Simple
 To build your matches dataset it is as simple as 
 
-```python3 match_downloader.py config.json```
+```python3 lol_scraper/main.py config.json```
 
 with config.json
 ```json
@@ -51,16 +51,18 @@ To stop the fetching, set the key `exit` to `True` in the configuration dictiona
 If you want to use LolScraper as a library, you can install it with
 `pip install lol_scraper`
 If you want to use it as a script, there is no need to install it. Just download the repository, and call
-`python3 match_downloader.py configuration_file.json`
+`python3 lol_scraper/main.py configuration_file.json`
 
 ##Dependencies
 LoLScraper is build over [Cassiopeia](https://github.com/robrua/cassiopeia).
+If you are installing with `pip` it is installed automatically.
+If you are manually downloading the repository you need to install cassiopeia.
 You can install Cassiopeia following the [library setup documentation](https://github.com/robrua/cassiopeia#setup).
 Here is a snippet (or better, all it takes)
 ``` pip3 install cassiopeia```
 
 If you prefer to not install Cassiopeia, you have an alternative!
-[Download the Cassiopeia repository](https://github.com/robrua/cassiopeia/archive/master.zip), extract it, set the path into which you extracted them into [the scripts](https://github.com/MakersF/LoLScraper/tree/master/riot_scraper/run_scripts), and call `match_downloader` from your CLI as if you were calling `match_downloader.py`
+[Download the Cassiopeia repository](https://github.com/robrua/cassiopeia/archive/master.zip), extract it, set the path into which you extracted them into [the scripts](https://github.com/MakersF/LoLScraper/tree/master/riot_scraper/run_scripts), and call `run_scripts/match_downloader` from your CLI as if you were calling `lol_scraper/main.py`
 
 ##Tests
 The tests require an API key. Create a file called ```api-key``` in the project root directory (where the .gitignore file is stored) with only your api key inside. The file is already on .gitignore, so there is no risk for you to commit and push it on the web.

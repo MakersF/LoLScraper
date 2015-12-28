@@ -10,7 +10,7 @@ install_requires = [
 project_url = "https://github.com/MakersF/LoLScraper"
 setup(
     name="lol_scraper",
-    version="0.0.02",
+    version="0.0.03",
     author="Francesco Zoffoli",
     author_email="makers.f.dev@gmail.com",
     url=project_url,

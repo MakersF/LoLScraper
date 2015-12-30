@@ -147,12 +147,11 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     for match_id in takewhile(lambda _: not conf.get('exit', False),
                                               matches_to_download_by_tier.consume(tier, 10, 0.2)):
                         match = get_match(match_id, conf['include_timeline'])
-                        if match.mapId == Maps[conf['map_type']].value:
+                        if match_id not in downloaded_matches and match.mapId == Maps[conf['map_type']].value:
                             match_min_tier = update_participants(players_to_analyze, match.participantIdentities,
                                                                  Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
 
-                            if match_id not in downloaded_matches and match_min_tier.is_better_or_equal(
-                                    Tier.parse(conf['minimum_tier'])) \
+                            if match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) \
                                     and check_minimum_patch(match.matchVersion, conf['minimum_patch']):
                                 conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
                                 match_downloaded_callback(match, match_min_tier.name)

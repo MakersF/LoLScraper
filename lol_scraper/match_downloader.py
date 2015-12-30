@@ -14,8 +14,8 @@ from cassiopeia.dto.matchlistapi import get_match_list
 from cassiopeia.dto.matchapi import get_match
 from cassiopeia.type.api.exception import APIError
 
-from data_types import TierSet, TierSeed, Tier, Queue, Maps, unix_time, SimpleCache, cache_autostore
-from summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
+from lol_scraper.data_types import TierSet, TierSeed, Tier, Queue, Maps, unix_time, SimpleCache, cache_autostore
+from lol_scraper.summoners_api import update_participants, summoner_names_to_id, leagues_by_summoner_ids
 
 version_key = 'current_version'
 delta_30_days = datetime.timedelta(days=30)

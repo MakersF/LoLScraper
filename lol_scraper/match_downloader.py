@@ -118,8 +118,8 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         break
 
                     if not working_on_matches:
-                        logger.info(
-                                "Starting player matchlist download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
+                        logger.info("Starting player matchlist download for tier {}. Players in queue: {}. "
+                                    "Downloads in queue: {}. Downloaded: {}"
                                     .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier),
                                             total_matches))
 
@@ -134,16 +134,16 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                                         matches_to_download_by_tier[tier].add(match_id)
                                 analyzed_players.add(player_id)
 
+                        working_on_matches = True
+                        logger.info("Starting matches download for tier {}. Players in queue: {}. "
+                                    "Downloads in queue: {}. Downloaded: {}"
+                                    .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier),
+                                            total_matches))
+
                     if conf.get('exit', False):
                         logger.info("Got exit request")
                         break
 
-                    logger.info(
-                            "Starting matches download for tier {}. Players in queue: {}. Downloads in queue: {}. Downloaded: {}"
-                                .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier),
-                                        total_matches))
-
-                    working_on_matches = True
                     for match_id in takewhile(lambda _: not conf.get('exit', False),
                                               matches_to_download_by_tier.consume(tier, 10, 0.2)):
                         match = get_match(match_id, conf['include_timeline'])

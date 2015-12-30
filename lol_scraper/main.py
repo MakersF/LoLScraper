@@ -4,9 +4,9 @@ import logging
 from json import loads, dumps
 from contextlib import closing, suppress
 
-from persist import TierStore, JSONConfigEncoder
-from match_downloader import setup_riot_api, prepare_config, download_matches
-from data_types import Tier
+from lol_scraper.persist import TierStore, JSONConfigEncoder
+from lol_scraper.match_downloader import setup_riot_api, prepare_config, download_matches
+from lol_scraper.data_types import Tier
 
 current_state_extension = '.checkpoint'
 

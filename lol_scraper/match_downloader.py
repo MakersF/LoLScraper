@@ -191,7 +191,11 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                     sleep(10)
                     continue
                 except Exception as e:
-                    logger.exception("Encountered unexpected exception {}".format(e))
+                    try:
+                        possible_game = "(Possibly for game {})".format(match_id)
+                    except:
+                        possible_game = ""
+                    logger.exception("Encountered unexpected exception {} {}".format(e, possible_game))
                     continue
 
     finally:

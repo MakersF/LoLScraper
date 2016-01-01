@@ -113,17 +113,14 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
 
             for tier in Tier.equals_and_above(Tier.parse(conf['minimum_tier'])):
                 try:
-                    if conf.get('exit', False):
-                        logger.info("Got exit request")
-                        break
-
                     if not working_on_matches:
                         logger.info("Starting player matchlist download for tier {}. Players in queue: {}. "
                                     "Downloads in queue: {}. Downloaded: {}"
                                     .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier),
                                             total_matches))
 
-                        for player_id in players_to_analyze.consume(tier, 10):
+                        for player_id in takewhile(lambda _: not conf.get('exit', False),
+                                                   players_to_analyze.consume(tier, 10)):
                             if player_id not in analyzed_players:
                                 match_list = get_match_list(player_id, begin_time=riot_time(conf['start']),
                                                             end_time=riot_time(conf['end']),
@@ -139,10 +136,6 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                                     "Downloads in queue: {}. Downloaded: {}"
                                     .format(tier.name, len(players_to_analyze), len(matches_to_download_by_tier),
                                             total_matches))
-
-                    if conf.get('exit', False):
-                        logger.info("Got exit request")
-                        break
 
                     for match_id in takewhile(lambda _: not conf.get('exit', False),
                                               matches_to_download_by_tier.consume(tier, 10, 0.2)):
@@ -160,6 +153,10 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
 
                                 downloaded_matches.add(match_id)
                     working_on_matches = False
+
+                    if conf.get('exit', False):
+                        logger.info("Got exit request")
+                        break
 
                     # analyzed_players grows indefinitely. This doesn't make sense, as after a while a player have new matches
                     # So when the list grows too big we remove a part of the players, so they can be analyzed again.

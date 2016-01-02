@@ -1,19 +1,22 @@
 import os
 import argparse
 import logging
-from json import loads, dumps
+import pickle
+from json import loads
 from contextlib import closing, suppress
 
-from lol_scraper.persist import TierStore, JSONConfigEncoder
+from lol_scraper.persist import TierStore
 from lol_scraper.match_downloader import setup_riot_api, prepare_config, download_matches
-from lol_scraper.data_types import Tier
+from lol_scraper.data_types import Tier, TierSeed, TierSet
 
-current_state_extension = '.checkpoint'
+current_state_extension = '.pickle'
+
 
 def make_store_callback(store):
     def store_callback(match, tier):
         store.store(match.to_json(sort_keys=False,indent=None), tier)
     return store_callback
+
 
 def download_from_config(conf, store_callback, checkpoint_callback):
     setup_riot_api(conf)
@@ -21,24 +24,25 @@ def download_from_config(conf, store_callback, checkpoint_callback):
 
     download_matches(store_callback, checkpoint_callback, runtime_config)
 
-def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches, max_match_id):
-        current_state={}
-        current_state['minimum_match_id'] = max_match_id
-        current_state['seed_players_by_tier'] = players_to_analyze.to_json()
-        with open(config_file+current_state_extension, 'wt') as state:
-            state.write(dumps(current_state, cls=JSONConfigEncoder, indent=4))
+
+def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches):
+    with open(config_file + current_state_extension, mode='wb') as matches:
+        pickle.dump((players_to_analyze.to_json(), matches_to_download_by_tier.to_json(), downloaded_matches), matches)
+
+
+def load_players_and_matches_ids_into(config_file, conf):
+    with suppress(FileNotFoundError), open(config_file + current_state_extension, mode='rb') as matches:
+        players_to_analyse, matches_to_download_by_tier, downloaded_matches = pickle.load(matches)
+        conf['seed_players_by_tier'] = TierSeed().from_json(players_to_analyse)
+        conf['matches_to_download_by_tier'] = TierSet(max_items_per_set=2000).from_json(matches_to_download_by_tier)
+        conf['downloaded_matches'] = downloaded_matches
+
 
 def main(configuration_file, no_state=False):
     with open(configuration_file, 'rt') as config_file:
         json_conf = loads(config_file.read())
 
-    with suppress(FileNotFoundError), open(configuration_file+current_state_extension, 'rt') as state:
-        current_state = loads(state.read())
-        json_conf.update(current_state)
-        if "seed_players_by_tier" in json_conf:
-            # Parse the tier name to the an instance of the Tier class
-            json_conf['seed_players_by_tier'] = {Tier.parse(tier_name):players for tier_name, players in json_conf['seed_players_by_tier'].items()}
-
+    load_players_and_matches_ids_into(configuration_file, json_conf)
 
     base_file_name = json_conf.get('base_file_name', '')
     matches_per_file = json_conf.get('matches_per_file', 0)
@@ -52,6 +56,7 @@ def main(configuration_file, no_state=False):
 
     with closing(TierStore(destination_directory, matches_per_file, base_file_name)) as store:
         download_from_config(json_conf, make_store_callback(store), checkpoint_callback)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

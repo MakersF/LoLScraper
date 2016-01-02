@@ -27,6 +27,14 @@ EVICTION_RATE = 0.5  # Half of the analyzed players
 patch_changed_lock = threading.Lock()
 patch_changed = False
 
+class Count:
+    count = 0
+
+    def __int__(self):
+        return self.count
+
+    def __str__(self):
+        return str(self.count)
 
 def riot_time(dt):
     if dt is None:
@@ -76,6 +84,33 @@ def check_minimum_patch(patch, minimum):
             return False
 
 
+def fetch_player(player_id, conf, matches_to_download, analyzed_players):
+    if player_id not in analyzed_players:
+        match_list = get_match_list(player_id, begin_time=riot_time(conf['start']),
+                                    end_time=riot_time(conf['end']),
+                                    ranked_queues=conf['queue'])
+        for match in match_list.matches:
+            match_id = match.matchId
+            if match_id > conf['minimum_match_id']:
+                matches_to_download.add(match_id)
+        analyzed_players.add(player_id)
+
+
+def fetch_game(match_id, conf, downloaded_matches, players_to_analyze, match_downloaded_callback, total_matches):
+    if match_id not in downloaded_matches:
+        match = get_match(match_id, conf['include_timeline'])
+        if match.mapId == Maps[conf['map_type']].value:
+            match_min_tier = update_participants(players_to_analyze, match.participantIdentities,
+                                                 Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
+
+            if match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) \
+                    and check_minimum_patch(match.matchVersion, conf['minimum_patch']):
+                match_downloaded_callback(match, match_min_tier.name)
+                total_matches.count += 1
+
+            downloaded_matches.add(match_id)
+
+
 def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf):
     logger = logging.getLogger(__name__)
     if conf['logging_level'] != logging.NOTSET:
@@ -84,17 +119,15 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
         # possibly set the level to warning
         pass
 
-    def checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches,
-                   max_match_id):
+    def checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches):
         logger.info("Reached the checkpoint.".format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), total_matches))
         if end_of_time_slice_callback:
             end_of_time_slice_callback(players_to_analyze, analyzed_players, matches_to_download_by_tier,
-                                       downloaded_matches, total_matches, max_match_id)
+                                       downloaded_matches, total_matches)
 
     players_to_analyze = TierSeed(tiers=conf['seed_players_by_tier'])
 
-    total_matches = 0
-    conf['maximum_downloaded_match_id'] = 0
+    total_matches = Count()
     downloaded_matches = set(conf['downloaded_matches'])
     logger.info("{} previously downloaded matches".format(len(downloaded_matches)))
 
@@ -121,15 +154,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
 
                         for player_id in takewhile(lambda _: not conf.get('exit', False),
                                                    players_to_analyze.consume(tier, 10)):
-                            if player_id not in analyzed_players:
-                                match_list = get_match_list(player_id, begin_time=riot_time(conf['start']),
-                                                            end_time=riot_time(conf['end']),
-                                                            ranked_queues=conf['queue'])
-                                for match in match_list.matches:
-                                    match_id = match.matchId
-                                    if match_id > conf['minimum_match_id']:
-                                        matches_to_download_by_tier[tier].add(match_id)
-                                analyzed_players.add(player_id)
+                            fetch_player(player_id, conf, matches_to_download_by_tier[tier], analyzed_players)
 
                         working_on_matches = True
                         logger.info("Starting matches download for tier {}. Players in queue: {}. "
@@ -139,19 +164,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
 
                     for match_id in takewhile(lambda _: not conf.get('exit', False),
                                               matches_to_download_by_tier.consume(tier, 10, 0.2)):
-                        if match_id not in downloaded_matches:
-                            match = get_match(match_id, conf['include_timeline'])
-                            if match.mapId == Maps[conf['map_type']].value:
-                                match_min_tier = update_participants(players_to_analyze, match.participantIdentities,
-                                                                     Tier.parse(conf['minimum_tier']), Queue[conf['queue']])
-
-                                if match_min_tier.is_better_or_equal(Tier.parse(conf['minimum_tier'])) \
-                                        and check_minimum_patch(match.matchVersion, conf['minimum_patch']):
-                                    conf['maximum_downloaded_match_id'] = max(match_id, conf['maximum_downloaded_match_id'])
-                                    match_downloaded_callback(match, match_min_tier.name)
-                                    total_matches += 1
-
-                                downloaded_matches.add(match_id)
+                        fetch_game(match_id, conf, downloaded_matches, players_to_analyze, match_downloaded_callback, total_matches)
                     working_on_matches = False
 
                     if conf.get('exit', False):
@@ -199,8 +212,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
     finally:
         # Always call the checkpoint, so that we can resume the download in case of exceptions.
         logger.info("Calling checkpoint callback")
-        checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches,
-                   conf['maximum_downloaded_match_id'])
+        checkpoint(players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches)
 
 
 def prepare_config(config):
@@ -222,8 +234,6 @@ def prepare_config(config):
     runtime_config['minimum_tier'] = config.get('minimum_tier', Tier.bronze.name).lower()
 
     runtime_config['include_timeline'] = config.get('include_timeline', True)
-
-    runtime_config['minimum_match_id'] = config.get('minimum_match_id', 0)
 
     runtime_config['downloaded_matches'] = config.get('downloaded_matches', [])
 

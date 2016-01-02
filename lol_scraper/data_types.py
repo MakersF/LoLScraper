@@ -2,6 +2,7 @@ from collections import defaultdict, namedtuple
 from enum import Enum, unique
 import datetime
 import math
+import itertools
 import time as _time
 
 @unique
@@ -127,8 +128,12 @@ class TierSet():
     def update_tier(self, values, tier):
         if values:
             tier_set = self._tiers[tier]
-            if self._max_items_per_set and len(tier_set) + len(values) > self._max_items_per_set:
-                return
+            if self._max_items_per_set:
+                can_add = max(0, self._max_items_per_set - len(tier_set))
+                if can_add >= len(values):
+                    tier_set.update(values)
+                else:
+                    tier_set.update(itertools.islice(values, can_add))
             else:
                 tier_set.update(values)
 

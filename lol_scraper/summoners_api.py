@@ -1,4 +1,5 @@
 from collections import defaultdict
+import operator
 
 from lol_scraper.data_types import Tier, Queue
 from cassiopeia.dto.summonerapi import get_summoners_by_name
@@ -40,24 +41,18 @@ def leagues_by_summoner_ids(summoner_ids, queue=Queue.RANKED_SOLO_5x5):
                     summoners_league[Tier.parse(league.tier)].add(int(id))
     return summoners_league
 
-def update_participants(tier_seed, participantsIdentities, minimum_tier=Tier.bronze, queue=Queue.RANKED_SOLO_5x5):
+def get_tier_from_participants(participantsIdentities, minimum_tier=Tier.bronze, queue=Queue.RANKED_SOLO_5x5):
     """
-    Add the participants of a match to a TierSeed if they are at least minimum_tier. Return the tier of the lowest tier
+    Returns the tier of the lowest tier and the participantsIDs divided by tier
     player in the match
-    :param tier_seed: the TierSeed to update
     :param participantsIdentities: the match participants
     :param minimum_tier: the minimum tier that a participant must be in order to be added
     :param queue: the queue over which the tier of the player is considered
     :return: the tier of the lowest tier player in the match
     """
-    match_tier = Tier.challenger
     leagues = leagues_by_summoner_ids([p.player.summonerId for p in participantsIdentities], queue)
-    for league, ids in leagues.items():
-        # challenger is 0, bronze is 6
-        if league.is_better_or_equal(minimum_tier):
-            tier_seed.update_tier(ids, league)
-        match_tier = match_tier.worst(league)
-    return match_tier
+    match_tier = max(leagues.keys(), key=operator.attrgetter('value'))
+    return match_tier, {league: ids for league, ids in leagues.items() if league.is_better_or_equal(minimum_tier)}
 
 def summoner_names_to_id(summoners):
     """

@@ -30,9 +30,9 @@ Then, it adds the players which were in the stored match to its initial list of 
 LoLScraper will
 
  - store the matches as compressed files
- - sleep while waiting for the rate limits, not consuming CPU time
- - avoids pulling matches only from a few players
- - only downloads a match once ( no repetitions )
+ - efficient multi threaded architecture minimizes the impact of latency on the download speed
+ - uniform sampling over the player matches
+ - downloads every match at most once ( guarantees no duplicates)
 
 ##Configurable
 While the example configuration is extremely short and easy to use, the available options cover all the needs. 
@@ -45,7 +45,8 @@ If the `destination_directory` element starts with `__file__`, `__file__` will b
 ##Customizable
 If your needs are different from the usual ones, you can import LoLScraper as a library.
 The [`download_matches` function](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py) takes a `store_callback` function in addition to the configuration parameters. The callback is called every time a match is downloaded. You can pass your own function and do whatever you want with the stored matches: send it over ssh to another server, translate it to Klingon, restructure it to XML, remove the parts you know you wont use, or just ignore it.
-If you need more customization in setting the seed players you can use the `seed_players_by_tier` key in the configuration file.
+If you need more customization in setting the seed players you can use the `seed_players_id` key in the configuration file.
+Additional configurations (like the number of threads to use for downloading, the logging interval, and more) can be found at the top of [`match_downloader`](https://github.com/MakersF/LoLScraper/blob/master/riot_scraper/match_downloader.py) and get be set as environment variables
 
 To stop the fetching, set the key `exit` to `True` in the configuration dictionary you passed to the method.
 

@@ -7,7 +7,6 @@ from contextlib import closing, suppress
 
 from lol_scraper.persist import TierStore
 from lol_scraper.match_downloader import setup_riot_api, prepare_config, download_matches
-from lol_scraper.data_types import Tier, TierSeed, TierSet
 
 current_state_extension = '.pickle'
 
@@ -21,20 +20,19 @@ def make_store_callback(store):
 def download_from_config(conf, store_callback, checkpoint_callback):
     setup_riot_api(conf)
     runtime_config = prepare_config(conf)
-
     download_matches(store_callback, checkpoint_callback, runtime_config)
 
 
-def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, matches_to_download_by_tier, downloaded_matches, total_matches):
+def time_slice_end_callback(config_file, players_to_analyze, analyzed_players, matches_to_download, downloaded_matches):
     with open(config_file + current_state_extension, mode='wb') as matches:
-        pickle.dump((players_to_analyze.to_json(), matches_to_download_by_tier.to_json(), downloaded_matches), matches)
+        pickle.dump((players_to_analyze, matches_to_download, downloaded_matches), matches)
 
 
 def load_players_and_matches_ids_into(config_file, conf):
     with suppress(FileNotFoundError), open(config_file + current_state_extension, mode='rb') as matches:
-        players_to_analyse, matches_to_download_by_tier, downloaded_matches = pickle.load(matches)
-        conf['seed_players_by_tier'] = TierSeed().from_json(players_to_analyse)
-        conf['matches_to_download_by_tier'] = TierSet(max_items_per_set=2000).from_json(matches_to_download_by_tier)
+        players_to_analyse, matches_to_download, downloaded_matches = pickle.load(matches)
+        conf['seed_players_id'] = players_to_analyse
+        conf['matches_to_download_by_tier'] = matches_to_download
         conf['downloaded_matches'] = downloaded_matches
 
 

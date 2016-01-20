@@ -89,7 +89,6 @@ def fetch_player(player_id, conf):
     return matches, player_id
 
 
-
 def fetch_match(match_id, conf):
     try:
         match = get_match(match_id, conf['include_timeline'])
@@ -103,6 +102,22 @@ def fetch_match(match_id, conf):
             return match, match_min_tier if valid else None, participant_tiers
     except Exception as e:
         raise FetchingException(match_id) from e
+
+
+def handle_exception(e, logger):
+    if isinstance(e, APIError):
+        if 400 <= e.error_code < 500:
+            # Might be a connection problem
+            logger.warning("Encountered error {}".format(e))
+        elif 500 <= e.error_code < 600:
+            # Server problem. Let's give it some time
+            logger.warning("Encountered error {}".format(e))
+        else:
+            logger.error("Encountered error {}".format(e))
+    elif isinstance(e, URLError):
+        logger.error("Encountered error {}. You are having connection issues".format(e))
+    else:
+        logger.exception("Encountered unexpected exception {}".format(e))
 
 
 def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf):
@@ -150,9 +165,12 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         for player_id in players_to_analyze.consume(tier, 10) if player_id not in analyzed_players
                     ]
                     for future in as_completed(futures):
-                        matches, player_id = future.result()
-                        matches_to_download_by_tier[tier].update(matches)
-                        analyzed_players.add(player_id)
+                        try:
+                            matches, player_id = future.result()
+                            matches_to_download_by_tier[tier].update(matches)
+                            analyzed_players.add(player_id)
+                        except Exception as e:
+                            handle_exception(e, logger)
 
                     if conf.get('exit', False):
                         logger.info("Got exit request")
@@ -166,15 +184,18 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         for match_id in matches_to_download_by_tier.consume(tier, 10, 0.2) if match_id not in downloaded_matches
                     ]
                     for future in as_completed(futures):
-                        match, match_min_tier, participant_tiers = future.result()
-                        match_id = match.matchId
-                        for tier, ids in participant_tiers.items():
-                            players_to_analyze.update_tier(ids, tier)
+                        try:
+                            match, match_min_tier, participant_tiers = future.result()
+                            match_id = match.matchId
+                            for tier, ids in participant_tiers.items():
+                                players_to_analyze.update_tier(ids, tier)
 
-                        downloaded_matches.add(match_id)
-                        if match_min_tier:
-                            match_downloaded_callback(match, match_min_tier.name)
-                            total_matches += 1
+                            downloaded_matches.add(match_id)
+                            if match_min_tier:
+                                match_downloaded_callback(match, match_min_tier.name)
+                                total_matches += 1
+                        except Exception as e:
+                            handle_exception(e, logger)
 
 
                     # analyzed_players grows indefinitely. This doesn't make sense, as after a while a player have new matches
@@ -188,24 +209,8 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                         analyzed_players = set()
                         downloaded_matches = set()
 
-                except APIError as e:
-                    if 400 <= e.error_code < 500:
-                        # Might be a connection problem
-                        logger.warning("Encountered error {}".format(e))
-                        continue
-                    elif 500 <= e.error_code < 600:
-                        # Server problem. Let's give it some time
-                        logger.warning("Encountered error {}".format(e))
-                        continue
-                    else:
-                        logger.error("Encountered error {}".format(e))
-                        continue
-                except URLError as e:
-                    logger.error("Encountered error {}. You are having connection issues".format(e))
-                    continue
                 except Exception as e:
-                    logger.exception("Encountered unexpected exception {}".format(e))
-                    continue
+                    handle_exception(e, logger)
 
     finally:
         # Always call the checkpoint, so that we can resume the download in case of exceptions.

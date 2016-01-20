@@ -205,7 +205,7 @@ def download_matches(match_downloaded_callback, end_of_time_slice_callback, conf
                                             random.random() < EVICTION_RATE}
 
                     # When a new patch is released, we can clear all the analyzed players and downloaded_matches if minimum_patch == 'latest'
-                    if conf['minimum_patch'].lower() != LATEST and get_patch_changed():
+                    if conf['minimum_patch'].lower() == LATEST and get_patch_changed():
                         analyzed_players = set()
                         downloaded_matches = set()
 

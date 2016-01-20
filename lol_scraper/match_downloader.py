@@ -24,6 +24,7 @@ max_analyzed_players_size = int(os.environ.get('MAX_ANALYZED_PLAYERS_SIZE', 5000
 EVICTION_RATE = float(os.environ.get('EVICTION_RATE', 0.5))  # Half of the analyzed players
 players_download_threads = int(os.environ.get('PLAYERS_DOWNLOAD_THREADS', 2))
 matches_download_threads = int(os.environ.get('MATCHES_DOWNLOAD_THREADS', 4))
+logging_interval = int(os.environ.get('LOGGING_INTERVAL', 60))
 
 patch_changed_lock = threading.Lock()
 patch_changed = False
@@ -373,7 +374,7 @@ def download_matches(match_downloaded_callback, on_exit_callback, conf, synchron
             if conf.get('exit', False):
                 break
             # Execute every 60 seconds, but we want to pool the exit flag every second.
-            if i % 60 != 59:
+            if i % logging_interval != 0:
                 continue
             with mtd_lock:
                 matches_in_queue = len(matches_to_download)

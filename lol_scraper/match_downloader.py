@@ -395,8 +395,7 @@ def download_matches(match_downloaded_callback, on_exit_callback, conf, synchron
         logger.info("Reached the checkpoint."
                     .format(datetime.datetime.now().strftime("%m-%d %H:%M:%S"), len(downloaded_matches)))
         if on_exit_callback:
-            on_exit_callback(players_to_analyze, analyzed_players, matches_to_download,
-                             downloaded_matches)
+            on_exit_callback(players_to_analyze, analyzed_players, matches_to_download, downloaded_matches)
 
     players_to_analyze = set(conf['seed_players_id'])
     downloaded_matches = set(conf['downloaded_matches'])

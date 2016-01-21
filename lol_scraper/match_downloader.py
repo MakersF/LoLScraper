@@ -20,10 +20,12 @@ version_key = 'current_version'
 delta_30_days = datetime.timedelta(days=30)
 cache = SimpleCache()
 LATEST = "latest"
-max_analyzed_players_size = int(os.environ.get('MAX_ANALYZED_PLAYERS_SIZE', 50000))
+
+max_analyzed_players_size = int(os.environ.get('MAX_ANALYZED_PLAYERS_SIZE', 10000))
 EVICTION_RATE = float(os.environ.get('EVICTION_RATE', 0.5))  # Half of the analyzed players
-players_download_threads = int(os.environ.get('PLAYERS_DOWNLOAD_THREADS', 2))
-matches_download_threads = int(os.environ.get('MATCHES_DOWNLOAD_THREADS', 4))
+max_players_in_queue = int(os.environ.get('MAX_PLAYERS_IN_QUEUE', 5000))
+max_players_download_threads = int(os.environ.get('MAX_PLAYERS_DOWNLOAD_THREADS', 10))
+matches_download_threads = int(os.environ.get('MATCHES_DOWNLOAD_THREADS', 10))
 logging_interval = int(os.environ.get('LOGGING_INTERVAL', 60))
 
 patch_changed_lock = threading.Lock()
@@ -166,11 +168,23 @@ class PlayerDownloader(threading.Thread):
         self.logger_lock = logger_lock
         self.logger = logger
 
+        self.downloaded_players = 0
+        self.exit_requested = False
+
+
+    def shutdown(self):
+        self.exit_requested = True
+
+
+    def _should_exit(self):
+        return self.conf.get('exit', False) or self.exit_requested
+
+
     def run(self):
-        while not self.conf.get('exit', False):
+        while not self._should_exit():
             try:
                 with self.pta_lock:
-                    while not self.conf.get('exit', False):
+                    while not self._should_exit():
                         try:
                             next_player = self.players_to_analyze.pop()
                             is_new = next_player not in self.analyzed_players
@@ -178,7 +192,6 @@ class PlayerDownloader(threading.Thread):
                         except KeyError:
                             self.player_available_condition.wait()
                             continue
-
 
                 if is_new:
                     match_list = get_match_list(next_player, begin_time=riot_time(self.conf['start']),
@@ -188,21 +201,27 @@ class PlayerDownloader(threading.Thread):
                         self.matches_available_condition.notify_all()
                     with self.pta_lock:
                         self.analyzed_players.add(next_player)
+                        self.downloaded_players += 1
                         # analyzed_players grows indefinitely. This doesn't make sense, as after a while a player have
                         # new matches. When the list grows too big we remove a part of the players,
                         # so that they can be analyzed again.
                         if len(self.analyzed_players) > max_analyzed_players_size:
+                            players_in_queue = len(self.analyzed_players)
                             self.analyzed_players = {player_id for player_id in self.analyzed_players
                                                 if random.random() < EVICTION_RATE}
+                            with self.logger_lock:
+                                self.logger.info("Evicting analyzed players. Previously: " + str(players_in_queue) +
+                                                 " Now: " + str(len(self.analyzed_players)))
 
             except Exception as e:
                 with self.logger_lock:
                     handle_exception(e, self.logger)
 
+
     @property
     def total_downloads(self):
         with self.pta_lock:
-            return len(self.analyzed_players)
+            return self.downloaded_players
 
 class MatchDownloader(threading.Thread):
 
@@ -244,7 +263,16 @@ class MatchDownloader(threading.Thread):
         self.logger_lock = logger_lock
         self.logger = logger
 
-        self.last_patch_changed = 0
+        self.matches_downloaded_count = 0
+        self.exit_requested = False
+
+
+    def shutdown(self):
+        self.exit_requested = True
+
+
+    def _should_exit(self):
+        return self.conf.get('exit', False) or self.exit_requested
 
 
     def fetch_match(self, match_id):
@@ -261,11 +289,12 @@ class MatchDownloader(threading.Thread):
         except Exception as e:
             raise FetchingException(match_id) from e
 
+
     def run(self):
-        while not self.conf.get('exit', False):
+        while not self._should_exit():
             try:
                 with self.mtd_lock:
-                    while not self.conf.get('exit', False):
+                    while not self._should_exit():
                         try:
                             next_match = self.matches_to_download.pop()
                             is_new = next_match not in self.downloaded_matches
@@ -277,12 +306,14 @@ class MatchDownloader(threading.Thread):
                 if is_new:
                     match, match_min_tier, participant_tiers = self.fetch_match(next_match)
                     with self.pta_lock:
-                        for ids in participant_tiers.values():
-                            self.players_to_analyze.update(ids)
-                        self.player_available_condition.notify_all()
+                        if len(self.players_to_analyze) <= max_players_in_queue:
+                            for ids in participant_tiers.values():
+                                self.players_to_analyze.update(ids)
+                            self.player_available_condition.notify_all()
 
                     with self.mtd_lock:
                         self.downloaded_matches.add(next_match)
+                        self.matches_downloaded_count += 1
 
                     if match_min_tier:
                         with self.user_function_lock:
@@ -290,10 +321,14 @@ class MatchDownloader(threading.Thread):
 
                     # When a new patch is released, we can clear all the downloaded_matches
                     # if minimum_patch == 'latest'
-                    with self.mtd_lock:
-                        if self.conf['minimum_patch'].lower() == LATEST and get_patch_changed():
-                            self.downloaded_matches.clear()
-                            consume_path_changed()
+                    # Most of the time it will be False: do not acquire the lock in that case
+                    if get_patch_changed():
+                        with self.mtd_lock:
+                            if self.conf['minimum_patch'].lower() == LATEST and get_patch_changed():
+                                self.downloaded_matches.clear()
+                                consume_path_changed()
+                                with self.logger_lock:
+                                    self.logger.info("New patch detected. Cleaned the downloaded matches set")
             except Exception as e:
                 with self.logger_lock:
                     handle_exception(e, self.logger)
@@ -301,7 +336,32 @@ class MatchDownloader(threading.Thread):
     @property
     def total_downloads(self):
         with self.mtd_lock:
-            return len(self.downloaded_matches)
+            return self.matches_downloaded_count
+
+class ThreadAutoTuner:
+
+    def __init__(self, create_thread, shutdown_thread):
+        self.downloaded_players_old = None
+        self.matches_in_queue_old = None
+        self.create_thread = create_thread
+        self.shutdown_thread = shutdown_thread
+
+
+    def update_thread_number(self, downloaded_players, matches_in_queue):
+        try:
+            if self.downloaded_players_old is None:
+                return
+
+            queue_expanding = matches_in_queue - self.matches_in_queue_old > 0
+            if matches_in_queue < 1000 and not queue_expanding:
+                self.create_thread()
+
+            if matches_in_queue > 1500 and queue_expanding:
+                self.shutdown_thread()
+
+        finally:
+            self.downloaded_players_old = downloaded_players
+            self.matches_in_queue_old = matches_in_queue
 
 
 def download_matches(match_downloaded_callback, on_exit_callback, conf, synchronize_callback= True):
@@ -351,16 +411,38 @@ def download_matches(match_downloaded_callback, on_exit_callback, conf, synchron
     matches_Available_condition = threading.Condition(mtd_lock)
     user_function_lock = threading.Lock() if synchronize_callback else NoOpContextManager()
     logger_lock = threading.Lock()
-    threads = []
+    player_downloader_threads = []
+    match_downloader_threads = []
 
     try:
+
+        def create_thread():
+            if len(player_downloader_threads) < max_players_download_threads:
+                player_downloader = PlayerDownloader(conf, players_to_analyze, analyzed_players, pta_lock, players_available_condition,
+                                         matches_to_download , mtd_lock, matches_Available_condition,
+                                         logger, logger_lock)
+                player_downloader.start()
+                player_downloader_threads.append(player_downloader)
+                with logger_lock:
+                    logger.info("Adding a player download thread. Threads: " + str(len(player_downloader_threads)))
+            else:
+                with logger_lock:
+                    logger.info("Tried adding a player download thread, but there are already the maximum number:"
+                                " " + str(max_players_download_threads))
+
+        def shutdown_thread():
+            if len(player_downloader_threads) > 1:
+                player_downloader_threads.pop().shutdown()
+                with logger_lock:
+                    logger.info("Removing a player downloader thread. Threads: " + str(len(player_downloader_threads)))
+            else:
+                with logger_lock:
+                    logger.info("Tried removing a player download thread, but there is only one left")
+
+
         logger.info("Starting fetching..")
-        for _ in range(players_download_threads):
-            player_downloader = PlayerDownloader(conf, players_to_analyze, analyzed_players, pta_lock, players_available_condition,
-                                                 matches_to_download , mtd_lock, matches_Available_condition,
-                                                 logger, logger_lock)
-            player_downloader.start()
-            threads.append(player_downloader)
+        # Start one player downloader thread
+        create_thread()
 
         for _ in range(matches_download_threads):
             match_downloader = MatchDownloader(conf, players_to_analyze, pta_lock, players_available_condition,
@@ -368,25 +450,37 @@ def download_matches(match_downloaded_callback, on_exit_callback, conf, synchron
                                                match_downloaded_callback, user_function_lock,
                                                logger, logger_lock)
             match_downloader.start()
-            threads.append(match_downloader)
+            match_downloader_threads.append(match_downloader)
+
+        auto_tuner = ThreadAutoTuner(create_thread, shutdown_thread)
 
         for i, _ in enumerate(do_every(1)):
+            # Pool the exit flag every second
             if conf.get('exit', False):
                 break
-            # Execute every 60 seconds, but we want to pool the exit flag every second.
-            if i % logging_interval != 0:
-                continue
-            with mtd_lock:
-                matches_in_queue = len(matches_to_download)
-                total_matches = len(downloaded_matches)
-            with pta_lock:
-                players_in_queue = len(players_to_analyze)
-                total_players = len(analyzed_players)
-            with logger_lock:
-                logger.info("Players in queue: {}. Downloaded players: {}. Matches in queue: {}. Downloaded matches: {}"
-                                .format(players_in_queue, total_players, matches_in_queue, total_matches))
 
-        # Notify all the waiting threads to exit
+            if i % 5 == 0:
+                with mtd_lock:
+                    matches_in_queue = len(matches_to_download)
+
+                # The lock happens in the property. Since it is not re-entrant, do not lock now
+                total_players = sum(th.total_downloads for th in player_downloader_threads)
+
+                auto_tuner.update_thread_number(total_players, matches_in_queue)
+
+            # Execute every LOGGING_INTERVAL seconds
+            if i % logging_interval == 0:
+                with mtd_lock:
+                    matches_in_queue = len(matches_to_download)
+                total_matches = sum(th.total_downloads for th in match_downloader_threads)
+                with pta_lock:
+                    players_in_queue = len(players_to_analyze)
+                total_players = sum(th.total_downloads for th in player_downloader_threads)
+                with logger_lock:
+                    logger.info("Players in queue: {}. Downloaded players: {}. Matches in queue: {}. Downloaded matches: {}"
+                                    .format(players_in_queue, total_players, matches_in_queue, total_matches))
+
+        # Notify all the waiting threads so they can exit
         with pta_lock:
             players_available_condition.notify_all()
         with mtd_lock:
@@ -394,8 +488,9 @@ def download_matches(match_downloaded_callback, on_exit_callback, conf, synchron
         logger.info("Terminating fetching")
 
     finally:
+        conf['exit'] = True
         # Joining threads before saving the state
-        for thread in threads:
+        for thread in player_downloader_threads + match_downloader_threads:
             thread.join()
         # Always call the checkpoint, so that we can resume the download in case of exceptions.
         logger.info("Calling checkpoint callback")

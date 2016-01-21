@@ -428,7 +428,7 @@ def download_matches(match_downloaded_callback, on_exit_callback, conf, synchron
                     logger.info("Adding a player download thread. Threads: " + str(len(player_downloader_threads)))
             else:
                 with logger_lock:
-                    logger.info("Tried adding a player download thread, but there are already the maximum number:"
+                    logger.debug("Tried adding a player download thread, but there are already the maximum number:"
                                 " " + str(max_players_download_threads))
 
         def shutdown_thread():
@@ -438,7 +438,7 @@ def download_matches(match_downloaded_callback, on_exit_callback, conf, synchron
                     logger.info("Removing a player downloader thread. Threads: " + str(len(player_downloader_threads)))
             else:
                 with logger_lock:
-                    logger.info("Tried removing a player download thread, but there is only one left")
+                    logger.debug("Tried removing a player download thread, but there is only one left")
 
 
         logger.info("Starting fetching..")

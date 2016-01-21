@@ -183,6 +183,7 @@ class PlayerDownloader(threading.Thread):
     def run(self):
         while not self._should_exit():
             try:
+                is_new = False
                 with self.pta_lock:
                     while not self._should_exit():
                         try:
@@ -293,6 +294,7 @@ class MatchDownloader(threading.Thread):
     def run(self):
         while not self._should_exit():
             try:
+                is_new = False
                 with self.mtd_lock:
                     while not self._should_exit():
                         try:
